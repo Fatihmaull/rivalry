@@ -1,0 +1,311 @@
+// Rivalry MVP — Database Schema
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ─── Users & Auth ─────────────────────────────────────────
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  username      String   @unique
+  passwordHash  String?
+  googleId      String?  @unique
+  avatarUrl     String?
+  bio           String?
+  role          String   @default("user") // user, admin, super_admin
+  status        String   @default("active") // active, suspended, banned
+  isVerified    Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  profile       Profile?
+  wallet        Wallet?
+  goals         Goal[]
+  roomsCreated  Room[]           @relation("RoomCreator")
+  participants  Participant[]
+  proofs        ProofSubmission[]
+  posts         Post[]
+  comments      Comment[]
+  followers     Follow[]         @relation("Following")
+  following     Follow[]         @relation("Follower")
+  observers     Observer[]
+  sentInvites   MatchInvite[]    @relation("InviteSender")
+  receivedInvites MatchInvite[]  @relation("InviteReceiver")
+  auditLogs     AdminAuditLog[]
+}
+
+model Profile {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  interests       String   @default("[]") // JSON array of strings
+  skillLevel      String   @default("beginner") // beginner, intermediate, advanced
+  reputationScore Int      @default(0)
+  totalWins       Int      @default(0)
+  totalLosses     Int      @default(0)
+  totalCompleted  Int      @default(0)
+  totalPrizeWon   Float    @default(0)
+  consistencyScore Float   @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Follow {
+  id          String   @id @default(uuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+}
+
+// ─── Wallet & Transactions ────────────────────────────────
+model Wallet {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  balance   Float    @default(0)
+  isFrozen  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+}
+
+model Transaction {
+  id          String   @id @default(uuid())
+  walletId    String
+  type        String   // top_up, deposit, withdrawal, prize, tip, refund, platform_fee
+  amount      Float
+  description String?
+  roomId      String?
+  status      String   @default("completed") // completed, pending, reversed, flagged
+  createdAt   DateTime @default(now())
+
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+}
+
+// ─── Goals ────────────────────────────────────────────────
+model Goal {
+  id          String   @id @default(uuid())
+  userId      String
+  category    String   // fitness, learning, career, business, finance, content_creation
+  title       String
+  description String?
+  goalType    String   // habit, project, skill, challenge
+  difficulty  String   // easy, medium, hard, extreme
+  timeline    String   // 1_week, 2_weeks, 1_month, 3_months
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rooms Room[]
+}
+
+// ─── Competition Rooms ────────────────────────────────────
+model Room {
+  id            String   @id @default(uuid())
+  creatorId     String
+  goalId        String?
+  title         String
+  description   String?
+  type          String   @default("1v1") // 1v1, group, free_for_all
+  status        String   @default("waiting") // waiting, active, completed, disputed, cancelled
+  maxPlayers    Int      @default(2)
+  entryDeposit  Float    @default(0)
+  prizePool     Float    @default(0)
+  proofType     String   @default("any") // photo, link, file, text, any
+  duration      String   // 1_week, 2_weeks, 1_month, 3_months
+  startDate     DateTime?
+  endDate       DateTime?
+  winnerId      String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  creator       User            @relation("RoomCreator", fields: [creatorId], references: [id])
+  goal          Goal?           @relation(fields: [goalId], references: [id])
+  participants  Participant[]
+  roadmap       Roadmap?
+  feedItems     RoomFeedItem[]
+  observers     Observer[]
+}
+
+model Participant {
+  id         String   @id @default(uuid())
+  roomId     String
+  userId     String
+  status     String   @default("active") // active, completed, withdrawn, disqualified
+  progress   Float    @default(0) // 0 to 100
+  rank       Int?
+  joinedAt   DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+}
+
+// ─── Roadmap & Milestones ─────────────────────────────────
+model Roadmap {
+  id        String   @id @default(uuid())
+  roomId    String   @unique
+  title     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  room       Room        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  milestones Milestone[]
+}
+
+model Milestone {
+  id          String   @id @default(uuid())
+  roadmapId   String
+  title       String
+  description String?
+  weekNumber  Int
+  orderIndex  Int
+  createdAt   DateTime @default(now())
+
+  roadmap  Roadmap           @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
+  substeps Substep[]
+  proofs   ProofSubmission[]
+}
+
+model Substep {
+  id          String   @id @default(uuid())
+  milestoneId String
+  title       String
+  isCompleted Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  milestone Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+}
+
+// ─── Proof Submissions ────────────────────────────────────
+model ProofSubmission {
+  id          String   @id @default(uuid())
+  milestoneId String
+  userId      String
+  type        String   // photo, link, file, text
+  content     String   // URL or text content
+  fileUrl     String?
+  status      String   @default("pending") // pending, approved, rejected
+  createdAt   DateTime @default(now())
+
+  milestone Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── Room Feed ────────────────────────────────────────────
+model RoomFeedItem {
+  id        String   @id @default(uuid())
+  roomId    String
+  type      String   // milestone_completed, proof_submitted, player_joined, message
+  content   String
+  userId    String?
+  createdAt DateTime @default(now())
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+}
+
+// ─── Social Feed ──────────────────────────────────────────
+model Post {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String   @default("update") // challenge, progress, invitation, update
+  content   String
+  imageUrl  String?
+  roomId    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comments Comment[]
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  postId    String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── Observer Mode ────────────────────────────────────────
+model Observer {
+  id        String   @id @default(uuid())
+  roomId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+}
+
+// ─── Matchmaking ──────────────────────────────────────────
+model MatchInvite {
+  id         String   @id @default(uuid())
+  senderId   String
+  receiverId String
+  goalId     String?
+  roomId     String?
+  status     String   @default("pending") // pending, accepted, declined, expired
+  message    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  sender   User @relation("InviteSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("InviteReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+}
+
+// ─── Interests / Categories (Master Data) ─────────────────
+model Interest {
+  id              String   @id @default(uuid())
+  name            String   @unique
+  description     String?
+  icon            String   @default("🎯")
+  color           String   @default("#00d4ff")
+  popularityScore Int      @default(0)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// ─── Admin Audit Log ──────────────────────────────────────
+model AdminAuditLog {
+  id          String   @id @default(uuid())
+  adminId     String
+  action      String   // user_suspended, room_cancelled, wallet_frozen, etc.
+  targetType  String   // user, room, wallet, transaction, interest, system
+  targetId    String?
+  details     String?  // JSON string with extra context
+  createdAt   DateTime @default(now())
+
+  admin User @relation(fields: [adminId], references: [id], onDelete: Cascade)
+}
+
+// ─── System Settings ──────────────────────────────────────
+model SystemSettings {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  updatedBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

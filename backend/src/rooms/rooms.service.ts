@@ -1,0 +1,339 @@
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { WalletService } from '../wallet/wallet.service';
+import { CreateRoomDto } from './dto/create-room.dto';
+
+@Injectable()
+export class RoomsService {
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly walletService: WalletService,
+    ) { }
+
+    async create(userId: string, dto: CreateRoomDto) {
+        const maxPlayers = dto.type === '1v1' ? 2 : (dto.maxPlayers || 10);
+
+        const room = await this.prisma.room.create({
+            data: {
+                creatorId: userId,
+                title: dto.title,
+                description: dto.description,
+                goalId: dto.goalId,
+                type: dto.type,
+                entryDeposit: dto.entryDeposit,
+                proofType: dto.proofType,
+                duration: dto.duration,
+                maxPlayers,
+            },
+            include: { creator: { select: { id: true, username: true, avatarUrl: true } } },
+        });
+
+        // Creator auto-joins
+        await this.joinRoom(userId, room.id);
+
+        return this.findById(room.id);
+    }
+
+    async findById(id: string) {
+        const room = await this.prisma.room.findUnique({
+            where: { id },
+            include: {
+                creator: { select: { id: true, username: true, avatarUrl: true } },
+                goal: true,
+                participants: {
+                    include: { user: { select: { id: true, username: true, avatarUrl: true } } },
+                    orderBy: { progress: 'desc' },
+                },
+                roadmap: {
+                    include: {
+                        milestones: {
+                            orderBy: { orderIndex: 'asc' },
+                            include: { substeps: true }
+                        }
+                    }
+                },
+                feedItems: { orderBy: { createdAt: 'desc' }, take: 20 },
+                _count: { select: { observers: true } },
+            },
+        });
+        if (!room) throw new NotFoundException('Room not found');
+        return room;
+    }
+
+    async joinRoom(userId: string, roomId: string) {
+        const room = await this.prisma.room.findUnique({
+            where: { id: roomId },
+            include: { _count: { select: { participants: true } } },
+        });
+        if (!room) throw new NotFoundException('Room not found');
+        if (room.status !== 'waiting' && room.status !== 'active') {
+            throw new BadRequestException('Room is not accepting players');
+        }
+        if (room._count.participants >= room.maxPlayers) {
+            throw new BadRequestException('Room is full');
+        }
+
+        // Check if already joined
+        const existing = await this.prisma.participant.findUnique({
+            where: { roomId_userId: { roomId, userId } },
+        });
+        if (existing) throw new BadRequestException('Already in this room');
+
+        // Deposit if required
+        if (room.entryDeposit > 0) {
+            await this.walletService.deposit(userId, room.entryDeposit, roomId);
+            await this.prisma.room.update({
+                where: { id: roomId },
+                data: { prizePool: { increment: room.entryDeposit } },
+            });
+        }
+
+        await this.prisma.participant.create({
+            data: { roomId, userId },
+        });
+
+        // Add feed item
+        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+        await this.prisma.roomFeedItem.create({
+            data: {
+                roomId,
+                type: 'player_joined',
+                content: `${user?.username} joined the competition`,
+                userId,
+            },
+        });
+
+        // Auto-activate if enough players for 1v1
+        const count = await this.prisma.participant.count({ where: { roomId } });
+        if (room.type === '1v1' && count >= 2) {
+            await this.activateRoom(roomId);
+        }
+
+        return this.findById(roomId);
+    }
+
+    async activateRoom(roomId: string) {
+        const now = new Date();
+        const room = await this.prisma.room.findUnique({ where: { id: roomId } });
+        if (!room) throw new NotFoundException('Room not found');
+
+        const durationMap: Record<string, number> = {
+            '1_week': 7, '2_weeks': 14, '1_month': 30, '3_months': 90,
+        };
+        const days = durationMap[room.duration] || 30;
+        const endDate = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+
+        await this.prisma.room.update({
+            where: { id: roomId },
+            data: { status: 'active', startDate: now, endDate },
+        });
+
+        // Generate roadmap
+        await this.generateRoadmap(roomId, room.title, room.duration);
+    }
+
+    private async generateRoadmap(roomId: string, goalTitle: string, duration: string) {
+        const weekMap: Record<string, number> = {
+            '1_week': 1, '2_weeks': 2, '1_month': 4, '3_months': 12,
+        };
+        const weeks = weekMap[duration] || 4;
+
+        const roadmap = await this.prisma.roadmap.create({
+            data: {
+                roomId,
+                title: `${goalTitle} Roadmap`,
+            },
+        });
+
+        const milestoneTemplates = this.getMilestoneTemplates(weeks);
+        for (let i = 0; i < milestoneTemplates.length; i++) {
+            const milestone = await this.prisma.milestone.create({
+                data: {
+                    roadmapId: roadmap.id,
+                    title: milestoneTemplates[i].title,
+                    description: milestoneTemplates[i].description,
+                    weekNumber: milestoneTemplates[i].week,
+                    orderIndex: i,
+                },
+            });
+
+            for (const substepTitle of milestoneTemplates[i].substeps) {
+                await this.prisma.substep.create({
+                    data: {
+                        milestoneId: milestone.id,
+                        title: substepTitle,
+                    }
+                });
+            }
+        }
+    }
+
+    private getMilestoneTemplates(weeks: number) {
+        const templates = [];
+        for (let w = 1; w <= weeks; w++) {
+            if (w === 1) {
+                templates.push({
+                    week: w,
+                    title: 'Foundation & Setup',
+                    description: 'Set up your environment and define your core routine.',
+                    substeps: [
+                        'Define 3 measurable daily habits related to your goal',
+                        'Set up your tracking environment (apps, journals, workspace)',
+                        'Complete a 15-minute introductory study or warm-up'
+                    ]
+                });
+                templates.push({
+                    week: w,
+                    title: 'Initial Benchmark',
+                    description: 'Assess your current level and perform your first full session.',
+                    substeps: [
+                        'Perform a baseline test (e.g., current max weight, typing speed, vocab count)',
+                        'Record a "Day 1" video or photo of your current progress',
+                        'Submit proof of your first 30-minute deep-work session'
+                    ]
+                });
+            } else if (w === weeks) {
+                templates.push({
+                    week: w,
+                    title: 'Mastery Challenge',
+                    description: 'Push your limits and aim for your peak performance.',
+                    substeps: [
+                        'Complete a high-intensity session at 110% of your benchmark',
+                        'Document your most difficult hurdle and how you overcame it',
+                        'Prepare your final summary of weekly achievements'
+                    ]
+                });
+                templates.push({
+                    week: w,
+                    title: 'Final Submission',
+                    description: 'Compare your results with Week 1 and present your achievement.',
+                    substeps: [
+                        'Re-run your baseline test and record the improvement',
+                        'Assemble a montage or summary of your journey',
+                        'Submit your final proof for community validation'
+                    ]
+                });
+            } else {
+                templates.push({
+                    week: w,
+                    title: `Week ${w} Technique Refinement`,
+                    description: `Focus on specific skills and improve consistency.`,
+                    substeps: [
+                        'Watch/read one advanced tutorial and implement one technique',
+                        'Achieve a 5-day streak of your core habits',
+                        'Identify and fix one common mistake in your routine'
+                    ]
+                });
+                templates.push({
+                    week: w,
+                    title: `Week ${w} Volume Increase`,
+                    description: `Scale up your effort and build endurance.`,
+                    substeps: [
+                        'Increase your session duration or intensity by 15%',
+                        'Collaborate or share progress with a peer for feedback',
+                        'Complete a "marathon" session (double your usual time)'
+                    ]
+                });
+            }
+        }
+        return templates;
+    }
+
+    async completeRoom(roomId: string) {
+        const room = await this.prisma.room.findUnique({
+            where: { id: roomId },
+            include: { participants: { orderBy: { progress: 'desc' } } },
+        });
+        if (!room) throw new NotFoundException('Room not found');
+        if (room.status === 'completed') return room;
+        if (room.status !== 'active' && room.status !== 'disputed') {
+            throw new BadRequestException('Room cannot be completed in its current status');
+        }
+
+        const winner = room.participants[0];
+        if (winner) {
+            await this.prisma.room.update({
+                where: { id: roomId },
+                data: { status: 'completed', winnerId: winner.userId },
+            });
+
+            // Distribute prize
+            if (room.prizePool > 0) {
+                await this.walletService.distributePrize(winner.userId, room.prizePool, roomId);
+            }
+
+            // Add feed item
+            const user = await this.prisma.user.findUnique({ where: { id: winner.userId } });
+            await this.prisma.roomFeedItem.create({
+                data: {
+                    roomId,
+                    type: 'milestone_completed',
+                    content: `🏆 ${user?.username} won the competition and claimed the prize pool of ${room.prizePool} credits!`,
+                    userId: winner.userId,
+                },
+            });
+
+            // Update stats
+            await this.prisma.profile.update({
+                where: { userId: winner.userId },
+                data: {
+                    totalWins: { increment: 1 },
+                    totalCompleted: { increment: 1 },
+                    totalPrizeWon: { increment: room.prizePool },
+                },
+            });
+
+            // Mark losers
+            for (const p of room.participants) {
+                if (p.userId !== winner.userId) {
+                    await this.prisma.profile.update({
+                        where: { userId: p.userId },
+                        data: { totalLosses: { increment: 1 }, totalCompleted: { increment: 1 } },
+                    });
+                }
+                await this.prisma.participant.update({
+                    where: { id: p.id },
+                    data: { status: 'completed', rank: room.participants.indexOf(p) + 1 },
+                });
+            }
+        }
+
+        return this.findById(roomId);
+    }
+
+    async listRooms(filters: { status?: string; type?: string; category?: string }, page = 1) {
+        const where: any = {};
+        if (filters.status) where.status = filters.status;
+        if (filters.type) where.type = filters.type;
+
+        const rooms = await this.prisma.room.findMany({
+            where,
+            include: {
+                creator: { select: { id: true, username: true, avatarUrl: true } },
+                _count: { select: { participants: true, observers: true } },
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 20,
+            skip: (page - 1) * 20,
+        });
+
+        const total = await this.prisma.room.count({ where });
+        return { rooms, total, page };
+    }
+
+    async getUserRooms(userId: string) {
+        const participations = await this.prisma.participant.findMany({
+            where: { userId },
+            include: {
+                room: {
+                    include: {
+                        creator: { select: { id: true, username: true, avatarUrl: true } },
+                        _count: { select: { participants: true } },
+                    },
+                },
+            },
+            orderBy: { joinedAt: 'desc' },
+        });
+        return participations.map(p => ({ ...p.room, myStatus: p.status, myProgress: p.progress }));
+    }
+}
