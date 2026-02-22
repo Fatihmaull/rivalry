@@ -7,12 +7,9 @@ async function bootstrap() {
 
     // CORS for frontend
     app.enableCors({
-        origin: [
-            'http://localhost:3000',
-            'http://localhost:3001',
-            'http://127.0.0.1:3000',
-            'http://127.0.0.1:3001'
-        ],
+        origin: process.env['CORS_ORIGIN']
+            ? process.env['CORS_ORIGIN'].split(',')
+            : ['http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001'],
         credentials: true,
         methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
         allowedHeaders: 'Content-Type,Accept,Authorization',
@@ -29,7 +26,7 @@ async function bootstrap() {
     app.setGlobalPrefix('api');
 
     const port = process.env['PORT'] || 4000;
-    await app.listen(port);
-    console.log(`🚀 Rivalry API running on http://localhost:${port}`);
+    await app.listen(port, '0.0.0.0');
+    console.log(`🚀 Rivalry API running on port ${port}`);
 }
 bootstrap();
