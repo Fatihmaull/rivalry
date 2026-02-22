@@ -1,8 +1,18 @@
 import { PrismaClient } from '@prisma/client';
-import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { Pool } = require('pg');
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { PrismaPg } = require('@prisma/adapter-pg');
 import * as bcrypt from 'bcrypt';
+import 'dotenv/config';
 
-const adapter = new PrismaBetterSqlite3({ url: process.env['DATABASE_URL'] || 'file:./dev.db' });
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
+const pool = new Pool({
+    connectionString: process.env['DATABASE_URL'],
+    ssl: { rejectUnauthorized: false },
+});
+const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter } as any);
 
 // ─── Data pools ─────────────────────────────────────────────
@@ -335,5 +345,11 @@ async function main() {
 }
 
 main()
-    .catch((e) => { console.error('Seed failed:', e); process.exit(1); })
+    .catch((e) => {
+        console.error('Seed failed:', e);
+        if (e.meta && e.meta.driverAdapterError) {
+            console.error('Driver Adapter Error:', e.meta.driverAdapterError);
+        }
+        process.exit(1);
+    })
     .finally(async () => { await prisma.$disconnect(); });
