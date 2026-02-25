@@ -60,7 +60,7 @@ export default function WalletPage() {
             <div className="glass-card animate-slide-up" style={{ textAlign: 'center', padding: '40px', marginBottom: '24px', background: 'var(--gradient-card)', borderColor: 'var(--border-accent)' }}>
                 <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '8px' }}>AVAILABLE BALANCE</div>
                 <div style={{ fontSize: '3rem', fontWeight: 900, fontFamily: 'var(--font-display)' }} className="text-gradient">
-                    {wallet?.balance?.toFixed(2) || '0.00'}
+                    {Number(wallet?.balance || 0).toFixed(2)}
                 </div>
                 <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>credits</div>
             </div>
@@ -88,13 +88,13 @@ export default function WalletPage() {
                     {wallet.transactions.map((tx: any) => (
                         <div key={tx.id} className="glass-card" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                             <div>
-                                <span className={`badge badge-${tx.amount > 0 ? 'green' : 'red'}`} style={{ marginRight: '8px' }}>
+                                <span className={`badge badge-${Number(tx.amount) >= 0 ? 'green' : 'red'}`} style={{ marginRight: '8px' }}>
                                     {tx.type}
                                 </span>
                                 <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{tx.description}</span>
                             </div>
-                            <span style={{ fontWeight: 700, color: tx.amount > 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-                                {tx.amount > 0 ? '+' : ''}{tx.amount}
+                            <span style={{ fontWeight: 700, color: Number(tx.amount) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                                {Number(tx.amount) > 0 ? '+' : ''}{Number(tx.amount).toFixed(2)}
                             </span>
                         </div>
                     ))}

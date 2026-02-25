@@ -19,114 +19,127 @@ export class WalletService {
     async topUp(userId: string, amount: number) {
         if (amount <= 0) throw new BadRequestException('Amount must be positive');
 
-        const wallet = await this.prisma.wallet.update({
-            where: { userId },
-            data: { balance: { increment: amount } },
-        });
+        await this.prisma.$transaction(async (tx) => {
+            await tx.wallet.update({
+                where: { userId },
+                data: { balance: { increment: amount } },
+            });
 
-        await this.prisma.transaction.create({
-            data: {
-                walletId: wallet.id,
-                type: 'top_up',
-                amount,
-                description: `Top up of ${amount} credits`,
-            },
+            const wallet = await tx.wallet.findUnique({ where: { userId } });
+            if (!wallet) throw new NotFoundException('Wallet not found');
+
+            await tx.transaction.create({
+                data: {
+                    walletId: wallet.id,
+                    type: 'top_up',
+                    amount,
+                    description: `Top up of ${amount} credits`,
+                },
+            });
         });
 
         return this.getWallet(userId);
     }
 
     async deposit(userId: string, amount: number, roomId: string) {
-        const wallet = await this.prisma.wallet.findUnique({ where: { userId } });
-        if (!wallet) throw new NotFoundException('Wallet not found');
-        if (wallet.balance < amount) throw new BadRequestException('Insufficient balance');
+        await this.prisma.$transaction(async (tx) => {
+            const wallet = await tx.wallet.findUnique({ where: { userId } });
+            if (!wallet) throw new NotFoundException('Wallet not found');
+            if (Number(wallet.balance) < amount) throw new BadRequestException('Insufficient balance');
 
-        await this.prisma.wallet.update({
-            where: { userId },
-            data: { balance: { decrement: amount } },
-        });
+            await tx.wallet.update({
+                where: { userId },
+                data: { balance: { decrement: amount } },
+            });
 
-        await this.prisma.transaction.create({
-            data: {
-                walletId: wallet.id,
-                type: 'deposit',
-                amount: -amount,
-                description: `Room deposit`,
-                roomId,
-            },
+            await tx.transaction.create({
+                data: {
+                    walletId: wallet.id,
+                    type: 'deposit',
+                    amount: -amount,
+                    description: `Room deposit`,
+                    roomId,
+                },
+            });
         });
 
         return this.getWallet(userId);
     }
 
     async distributePrize(userId: string, amount: number, roomId: string) {
-        const wallet = await this.prisma.wallet.findUnique({ where: { userId } });
-        if (!wallet) throw new NotFoundException('Wallet not found');
+        await this.prisma.$transaction(async (tx) => {
+            const wallet = await tx.wallet.findUnique({ where: { userId } });
+            if (!wallet) throw new NotFoundException('Wallet not found');
 
-        await this.prisma.wallet.update({
-            where: { userId },
-            data: { balance: { increment: amount } },
-        });
+            await tx.wallet.update({
+                where: { userId },
+                data: { balance: { increment: amount } },
+            });
 
-        await this.prisma.transaction.create({
-            data: {
-                walletId: wallet.id,
-                type: 'prize',
-                amount,
-                description: `Prize won`,
-                roomId,
-            },
+            await tx.transaction.create({
+                data: {
+                    walletId: wallet.id,
+                    type: 'prize',
+                    amount,
+                    description: `Prize won`,
+                    roomId,
+                },
+            });
         });
 
         return this.getWallet(userId);
     }
 
     async withdraw(userId: string, amount: number) {
-        const wallet = await this.prisma.wallet.findUnique({ where: { userId } });
-        if (!wallet) throw new NotFoundException('Wallet not found');
-        if (wallet.balance < amount) throw new BadRequestException('Insufficient balance');
+        await this.prisma.$transaction(async (tx) => {
+            const wallet = await tx.wallet.findUnique({ where: { userId } });
+            if (!wallet) throw new NotFoundException('Wallet not found');
+            if (Number(wallet.balance) < amount) throw new BadRequestException('Insufficient balance');
 
-        await this.prisma.wallet.update({
-            where: { userId },
-            data: { balance: { decrement: amount } },
-        });
+            await tx.wallet.update({
+                where: { userId },
+                data: { balance: { decrement: amount } },
+            });
 
-        await this.prisma.transaction.create({
-            data: {
-                walletId: wallet.id,
-                type: 'withdrawal',
-                amount: -amount,
-                description: `Withdrawal of ${amount} credits`,
-            },
+            await tx.transaction.create({
+                data: {
+                    walletId: wallet.id,
+                    type: 'withdrawal',
+                    amount: -amount,
+                    description: `Withdrawal of ${amount} credits`,
+                },
+            });
         });
 
         return this.getWallet(userId);
     }
 
     async tip(userId: string, amount: number, roomId: string) {
-        const wallet = await this.prisma.wallet.findUnique({ where: { userId } });
-        if (!wallet) throw new NotFoundException('Wallet not found');
-        if (wallet.balance < amount) throw new BadRequestException('Insufficient balance');
+        await this.prisma.$transaction(async (tx) => {
+            const wallet = await tx.wallet.findUnique({ where: { userId } });
+            if (!wallet) throw new NotFoundException('Wallet not found');
+            if (Number(wallet.balance) < amount) throw new BadRequestException('Insufficient balance');
 
-        await this.prisma.wallet.update({
-            where: { userId },
-            data: { balance: { decrement: amount } },
-        });
+            await tx.wallet.update({
+                where: { userId },
+                data: { balance: { decrement: amount } },
+            });
 
-        await this.prisma.transaction.create({
-            data: {
-                walletId: wallet.id,
-                type: 'tip',
-                amount: -amount,
-                description: `Tip to room prize pool`,
-                roomId,
-            },
-        });
+            await tx.transaction.create({
+                data: {
+                    walletId: wallet.id,
+                    type: 'tip',
+                    amount: -amount,
+                    description: `Tip to room prize pool`,
+                    roomId,
+                },
+            });
 
-        // Add to room prize pool
-        await this.prisma.room.update({
-            where: { id: roomId },
-            data: { prizePool: { increment: amount } },
+            // Add to room prize pool
+            await tx.room.update({
+                where: { id: roomId },
+                data: { prizePool: { increment: amount } },
+            });
         });
 
         return this.getWallet(userId);

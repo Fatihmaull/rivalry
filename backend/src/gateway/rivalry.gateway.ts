@@ -8,9 +8,16 @@ import {
     MessageBody,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 
 @WebSocketGateway({
-    cors: { origin: '*' },
+    cors: {
+        origin: process.env['CORS_ORIGIN']
+            ? process.env['CORS_ORIGIN'].split(',')
+            : ['http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001'],
+        credentials: true,
+    },
     namespace: '/rivalry',
 })
 export class RivalryGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -19,23 +26,55 @@ export class RivalryGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
     private connectedUsers = new Map<string, string>(); // socketId -> userId
 
-    handleConnection(client: Socket) {
-        console.log(`Client connected: ${client.id}`);
+    constructor(
+        private readonly jwtService: JwtService,
+        private readonly configService: ConfigService,
+    ) { }
+
+    async handleConnection(client: Socket) {
+        try {
+            // Extract JWT from handshake auth header or query param
+            const token =
+                client.handshake.auth?.token ||
+                client.handshake.headers?.authorization?.replace('Bearer ', '') ||
+                (client.handshake.query?.token as string);
+
+            if (!token) {
+                client.emit('error', { message: 'Authentication required' });
+                client.disconnect();
+                return;
+            }
+
+            const secret = this.configService.get<string>('JWT_SECRET');
+            const payload = await this.jwtService.verifyAsync(token, { secret });
+            const userId = payload.sub;
+
+            if (!userId) {
+                client.emit('error', { message: 'Invalid token' });
+                client.disconnect();
+                return;
+            }
+
+            // Store authenticated user mapping
+            this.connectedUsers.set(client.id, userId);
+            client.emit('authenticated', { success: true, userId });
+        } catch {
+            client.emit('error', { message: 'Invalid or expired token' });
+            client.disconnect();
+        }
     }
 
     handleDisconnect(client: Socket) {
         this.connectedUsers.delete(client.id);
-        console.log(`Client disconnected: ${client.id}`);
-    }
-
-    @SubscribeMessage('authenticate')
-    handleAuth(@ConnectedSocket() client: Socket, @MessageBody() data: { userId: string }) {
-        this.connectedUsers.set(client.id, data.userId);
-        client.emit('authenticated', { success: true });
     }
 
     @SubscribeMessage('joinRoom')
     handleJoinRoom(@ConnectedSocket() client: Socket, @MessageBody() data: { roomId: string }) {
+        const userId = this.connectedUsers.get(client.id);
+        if (!userId) {
+            client.emit('error', { message: 'Not authenticated' });
+            return;
+        }
         client.join(`room:${data.roomId}`);
         client.emit('joinedRoom', { roomId: data.roomId });
     }

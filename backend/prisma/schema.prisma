@@ -48,8 +48,8 @@ model Profile {
   totalWins       Int      @default(0)
   totalLosses     Int      @default(0)
   totalCompleted  Int      @default(0)
-  totalPrizeWon   Float    @default(0)
-  consistencyScore Float   @default(0)
+  totalPrizeWon   Decimal  @default(0)
+  consistencyScore Decimal @default(0)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -72,7 +72,7 @@ model Follow {
 model Wallet {
   id        String   @id @default(uuid())
   userId    String   @unique
-  balance   Float    @default(0)
+  balance   Decimal  @default(0)
   isFrozen  Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -85,7 +85,7 @@ model Transaction {
   id          String   @id @default(uuid())
   walletId    String
   type        String   // top_up, deposit, withdrawal, prize, tip, refund, platform_fee
-  amount      Float
+  amount      Decimal
   description String?
   roomId      String?
   status      String   @default("completed") // completed, pending, reversed, flagged
@@ -122,8 +122,8 @@ model Room {
   type          String   @default("1v1") // 1v1, group, free_for_all
   status        String   @default("waiting") // waiting, active, completed, disputed, cancelled
   maxPlayers    Int      @default(2)
-  entryDeposit  Float    @default(0)
-  prizePool     Float    @default(0)
+  entryDeposit  Decimal  @default(0)
+  prizePool     Decimal  @default(0)
   proofType     String   @default("any") // photo, link, file, text, any
   duration      String   // 1_week, 2_weeks, 1_month, 3_months
   startDate     DateTime?
@@ -145,7 +145,7 @@ model Participant {
   roomId     String
   userId     String
   status     String   @default("active") // active, completed, withdrawn, disqualified
-  progress   Float    @default(0) // 0 to 100
+  progress   Decimal  @default(0) // 0 to 100
   rank       Int?
   joinedAt   DateTime @default(now())
   updatedAt  DateTime @updatedAt

@@ -84,13 +84,13 @@ export default function RoomDetailPage() {
                         </div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: '2rem', fontWeight: 800 }} className="text-gradient">{room.prizePool}</div>
+                        <div style={{ fontSize: '2rem', fontWeight: 800 }} className="text-gradient">{Number(room.prizePool).toFixed(2)}</div>
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>PRIZE POOL</div>
                     </div>
                 </div>
                 {!isParticipant && room.status === 'waiting' && user && (
                     <button onClick={handleJoin} className="btn btn-primary" style={{ marginTop: '16px' }}>
-                        ⚔️ Join Room ({room.entryDeposit} credits)
+                        ⚔️ Join Room ({Number(room.entryDeposit).toFixed(2)} credits)
                     </button>
                 )}
             </div>
@@ -198,7 +198,7 @@ export default function RoomDetailPage() {
                                 <div className="progress-bar" style={{ width: '100px', marginBottom: '4px' }}>
                                     <div className="progress-bar-fill" style={{ width: `${p.progress}%` }} />
                                 </div>
-                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{p.progress.toFixed(0)}%</div>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{Number(p.progress).toFixed(0)}%</div>
                             </div>
                         </div>
                     ))}

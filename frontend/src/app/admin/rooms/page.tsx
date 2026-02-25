@@ -84,8 +84,8 @@ export default function AdminRooms() {
                                     <td style={tdStyle}><span style={{ fontSize: '0.8rem' }}>{r.type}</span></td>
                                     <td style={tdStyle}><span style={{ padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600, background: sc.bg, color: sc.color }}>{r.status}</span></td>
                                     <td style={tdStyle}>{r._count?.participants || 0}/{r.maxPlayers}</td>
-                                    <td style={tdStyle}>${r.entryDeposit}</td>
-                                    <td style={{ ...tdStyle, fontWeight: 600 }}>${r.prizePool}</td>
+                                    <td style={tdStyle}>${Number(r.entryDeposit).toFixed(2)}</td>
+                                    <td style={{ ...tdStyle, fontWeight: 600 }}>${Number(r.prizePool).toFixed(2)}</td>
                                     <td style={tdStyle}>{r.duration?.replace('_', ' ')}</td>
                                     <td style={{ ...tdStyle, fontSize: '0.75rem', color: 'var(--text-muted)' }}>{new Date(r.createdAt).toLocaleDateString()}</td>
                                     <td style={tdStyle}>

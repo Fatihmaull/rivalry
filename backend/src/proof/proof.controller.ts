@@ -16,9 +16,23 @@ export class ProofController {
         return this.proofService.submit(req.user.sub, milestoneId, body);
     }
 
+    @Post(':proofId/review')
+    async reviewProof(
+        @Request() req: any,
+        @Param('proofId') proofId: string,
+        @Body() body: { approved: boolean },
+    ) {
+        return this.proofService.reviewProof(req.user.sub, proofId, body.approved);
+    }
+
     @Get('milestone/:milestoneId')
     async getByMilestone(@Param('milestoneId') milestoneId: string) {
         return this.proofService.getByMilestone(milestoneId);
+    }
+
+    @Get('room/:roomId/pending')
+    async getPendingForRoom(@Param('roomId') roomId: string) {
+        return this.proofService.getPendingForRoom(roomId);
     }
 
     @Get('user')

@@ -44,9 +44,9 @@ export class AdminService {
             completedRooms,
             disputedRooms,
             totalInterests,
-            totalDeposits: Math.abs(depositAgg._sum.amount || 0),
-            totalPrizePool: prizeAgg._sum.amount || 0,
-            platformRevenue: Math.abs(feeAgg._sum.amount || 0),
+            totalDeposits: Math.abs(Number(depositAgg._sum.amount || 0)),
+            totalPrizePool: Number(prizeAgg._sum.amount || 0),
+            platformRevenue: Math.abs(Number(feeAgg._sum.amount || 0)),
             flaggedContent: disputedRooms,
         };
     }
@@ -340,8 +340,8 @@ export class AdminService {
             activeRooms,
             completedRooms,
             disputedRooms,
-            avgPrizePool: totalRooms > 0 ? (totalPrizeAgg._sum.prizePool || 0) / totalRooms : 0,
-            avgDeposit: totalPrizeAgg._avg.entryDeposit || 0,
+            avgPrizePool: totalRooms > 0 ? Number(totalPrizeAgg._sum.prizePool || 0) / totalRooms : 0,
+            avgDeposit: Number(totalPrizeAgg._avg.entryDeposit || 0),
             roomTypes: roomTypes.map(t => ({ type: t.type, count: t._count.id })),
             roomStatuses: roomStatuses.map(s => ({ status: s.status, count: s._count.id })),
             skillLevels: skillLevels.map(s => ({ level: s.skillLevel, count: s._count.id })),

@@ -2,24 +2,12 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { api } from '../lib/api';
-
-interface User {
-    id: string;
-    email: string;
-    username: string;
-    avatarUrl?: string;
-    bio?: string;
-    role?: string;
-    status?: string;
-    isVerified?: boolean;
-    profile?: any;
-    wallet?: any;
-}
+import type { User, UserProfile, WalletData, AuthResponse } from '../lib/types';
 
 interface AuthContextType {
     user: User | null;
     loading: boolean;
-    login: (email: string, password: string) => Promise<any>;
+    login: (email: string, password: string) => Promise<AuthResponse>;
     signup: (email: string, username: string, password: string) => Promise<void>;
     logout: () => void;
     refreshUser: () => Promise<void>;

@@ -1,30 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '../../context/AuthContext';
-import { api } from '../../lib/api';
+import { useMyRooms, useGoals, useUserStats } from '../../lib/hooks';
+import type { Room, Goal, UserStats } from '../../lib/types';
 
 export default function DashboardPage() {
     const { user } = useAuth();
-    const [rooms, setRooms] = useState<any[]>([]);
-    const [goals, setGoals] = useState<any[]>([]);
-    const [stats, setStats] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
+    const { data: rooms = [], isLoading: roomsLoading } = useMyRooms();
+    const { data: goals = [], isLoading: goalsLoading } = useGoals();
+    const { data: stats } = useUserStats(user?.id);
 
-    useEffect(() => {
-        if (!user) return;
-        Promise.all([
-            api.getMyRooms().catch(() => []),
-            api.getGoals().catch(() => []),
-            api.getUserStats(user.id).catch(() => null),
-        ]).then(([r, g, s]) => {
-            setRooms(r);
-            setGoals(g);
-            setStats(s);
-            setLoading(false);
-        });
-    }, [user]);
+    const loading = roomsLoading || goalsLoading;
 
     if (!user) {
         return (
@@ -38,8 +25,8 @@ export default function DashboardPage() {
         );
     }
 
-    const activeRooms = rooms.filter(r => r.status === 'active' || r.status === 'waiting');
-    const completedRooms = rooms.filter(r => r.status === 'completed');
+    const activeRooms = rooms.filter((r: Room) => r.status === 'active' || r.status === 'waiting');
+    const completedRooms = rooms.filter((r: Room) => r.status === 'completed');
 
     return (
         <div className="page container">
@@ -58,11 +45,15 @@ export default function DashboardPage() {
                     <div className="stat-label">Wins</div>
                 </div>
                 <div className="stat-card glass-card">
-                    <div className="stat-value" style={{ color: 'var(--accent-green)' }}>{stats?.winRate || '0'}%</div>
+                    <div className="stat-value" style={{ color: 'var(--accent-green)' }}>
+                        {stats?.totalWins && stats?.totalCompleted
+                            ? ((stats.totalWins / stats.totalCompleted) * 100).toFixed(0)
+                            : '0'}%
+                    </div>
                     <div className="stat-label">Win Rate</div>
                 </div>
                 <div className="stat-card glass-card">
-                    <div className="stat-value" style={{ color: 'var(--accent-orange)' }}>{stats?.totalPrizeWon?.toFixed(0) || 0}</div>
+                    <div className="stat-value" style={{ color: 'var(--accent-orange)' }}>{Number(stats?.totalPrizeWon || 0).toFixed(0)}</div>
                     <div className="stat-label">Credits Won</div>
                 </div>
                 <div className="stat-card glass-card">
@@ -94,21 +85,21 @@ export default function DashboardPage() {
                     </div>
                 ) : (
                     <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        {activeRooms.map(room => (
+                        {activeRooms.map((room: Room & { myProgress?: number }) => (
                             <Link key={room.id} href={`/rooms/${room.id}`} className="glass-card glass-card-glow" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', textDecoration: 'none' }}>
                                 <div>
                                     <div style={{ fontWeight: 600, marginBottom: '4px' }}>{room.title}</div>
                                     <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', gap: '12px' }}>
                                         <span className={`status-${room.status}`}>{room.status}</span>
                                         <span>{room.type}</span>
-                                        <span>💰 {room.prizePool} credits</span>
+                                        <span>💰 {Number(room.prizePool).toFixed(2)} credits</span>
                                     </div>
                                 </div>
                                 <div style={{ textAlign: 'right' }}>
                                     <div className="progress-bar" style={{ width: '120px', marginBottom: '4px' }}>
                                         <div className="progress-bar-fill" style={{ width: `${room.myProgress || 0}%` }} />
                                     </div>
-                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{(room.myProgress || 0).toFixed(0)}% complete</div>
+                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{Number(room.myProgress || 0).toFixed(0)}% complete</div>
                                 </div>
                             </Link>
                         ))}
@@ -129,7 +120,7 @@ export default function DashboardPage() {
                     </div>
                 ) : (
                     <div className="grid-2 stagger">
-                        {goals.map(goal => (
+                        {goals.map((goal: Goal) => (
                             <div key={goal.id} className="glass-card" style={{ padding: '20px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                                     <span className="badge badge-blue">{goal.category}</span>

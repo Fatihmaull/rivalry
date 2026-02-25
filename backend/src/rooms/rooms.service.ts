@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WalletService } from '../wallet/wallet.service';
+import { RivalryGateway } from '../gateway/rivalry.gateway';
 import { CreateRoomDto } from './dto/create-room.dto';
 
 @Injectable()
@@ -8,6 +9,8 @@ export class RoomsService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly walletService: WalletService,
+        @Inject(forwardRef(() => RivalryGateway))
+        private readonly gateway: RivalryGateway,
     ) { }
 
     async create(userId: string, dto: CreateRoomDto) {
@@ -80,11 +83,11 @@ export class RoomsService {
         if (existing) throw new BadRequestException('Already in this room');
 
         // Deposit if required
-        if (room.entryDeposit > 0) {
-            await this.walletService.deposit(userId, room.entryDeposit, roomId);
+        if (Number(room.entryDeposit) > 0) {
+            await this.walletService.deposit(userId, Number(room.entryDeposit), roomId);
             await this.prisma.room.update({
                 where: { id: roomId },
-                data: { prizePool: { increment: room.entryDeposit } },
+                data: { prizePool: { increment: Number(room.entryDeposit) } },
             });
         }
 
@@ -109,6 +112,13 @@ export class RoomsService {
             await this.activateRoom(roomId);
         }
 
+        // Notify via WebSocket
+        this.gateway.notifyRoomUpdate(roomId, 'room:playerJoined', {
+            roomId,
+            userId,
+            username: user?.username,
+        });
+
         return this.findById(roomId);
     }
 
@@ -130,6 +140,13 @@ export class RoomsService {
 
         // Generate roadmap
         await this.generateRoadmap(roomId, room.title, room.duration);
+
+        // Notify via WebSocket
+        this.gateway.notifyRoomUpdate(roomId, 'room:activated', {
+            roomId,
+            startDate: now,
+            endDate,
+        });
     }
 
     private async generateRoadmap(roomId: string, goalTitle: string, duration: string) {
@@ -258,8 +275,8 @@ export class RoomsService {
             });
 
             // Distribute prize
-            if (room.prizePool > 0) {
-                await this.walletService.distributePrize(winner.userId, room.prizePool, roomId);
+            if (Number(room.prizePool) > 0) {
+                await this.walletService.distributePrize(winner.userId, Number(room.prizePool), roomId);
             }
 
             // Add feed item
@@ -297,6 +314,12 @@ export class RoomsService {
                 });
             }
         }
+
+        // Notify via WebSocket
+        this.gateway.notifyRoomUpdate(roomId, 'room:completed', {
+            roomId,
+            winnerId: winner?.userId,
+        });
 
         return this.findById(roomId);
     }

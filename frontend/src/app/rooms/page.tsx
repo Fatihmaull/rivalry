@@ -58,8 +58,8 @@ export default function RoomsPage() {
                                     </div>
                                     <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', gap: '16px' }}>
                                         <span>👥 {room._count?.participants || 0}/{room.maxPlayers}</span>
-                                        <span>💰 {room.entryDeposit} deposit</span>
-                                        <span>🏆 {room.prizePool} pool</span>
+                                        <span>💰 {Number(room.entryDeposit).toFixed(2)} deposit</span>
+                                        <span>🏆 {Number(room.prizePool).toFixed(2)} pool</span>
                                     </div>
                                 </div>
                                 <div style={{ textAlign: 'right', color: 'var(--text-muted)', fontSize: '0.8rem' }}>

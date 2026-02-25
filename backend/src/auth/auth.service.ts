@@ -50,6 +50,42 @@ export class AuthService {
         return { user: this.sanitizeUser(user), ...tokens };
     }
 
+    async googleLogin(googleUser: { email: string; username: string; avatarUrl?: string }) {
+        if (!googleUser.email) throw new UnauthorizedException('Google account has no email');
+
+        // Check if user exists
+        let user = await this.prisma.user.findUnique({
+            where: { email: googleUser.email },
+            include: { profile: true, wallet: true },
+        });
+
+        if (!user) {
+            // Auto-register from Google
+            // Generate unique username if taken
+            let username = googleUser.username.replace(/\s+/g, '_').toLowerCase();
+            const existing = await this.prisma.user.findUnique({ where: { username } });
+            if (existing) {
+                username = `${username}_${Date.now().toString(36)}`;
+            }
+
+            user = await this.prisma.user.create({
+                data: {
+                    email: googleUser.email,
+                    username,
+                    passwordHash: '', // No password for OAuth users
+                    avatarUrl: googleUser.avatarUrl,
+                    isVerified: true, // Google accounts are pre-verified
+                    profile: { create: {} },
+                    wallet: { create: {} },
+                },
+                include: { profile: true, wallet: true },
+            });
+        }
+
+        const tokens = await this.generateTokens(user.id, user.email);
+        return { user: this.sanitizeUser(user), ...tokens };
+    }
+
     async validateUser(userId: string) {
         const user = await this.prisma.user.findUnique({
             where: { id: userId },
@@ -67,7 +103,7 @@ export class AuthService {
         return { accessToken, refreshToken };
     }
 
-    private sanitizeUser(user: any) {
+    private sanitizeUser(user: Record<string, unknown>) {
         const { passwordHash, ...safe } = user;
         return safe;
     }
