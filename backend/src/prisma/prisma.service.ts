@@ -10,16 +10,21 @@ const { PrismaPg } = require('@prisma/adapter-pg');
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   constructor() {
-    const isProd = process.env['NODE_ENV'] === 'production' || process.env['DATABASE_URL']?.includes('onrender.com') || process.env['DATABASE_URL']?.includes('supabase.com');
+    const dbUrl = process.env['DATABASE_URL'] || '';
+    const isProd = process.env['NODE_ENV'] === 'production';
+    const isExternal = dbUrl.includes('supabase.com') || dbUrl.includes('onrender.com');
 
-    const sslConfig = isProd
+    // Force skip SSL verification for any non-local database
+    const sslConfig = (isProd || isExternal || process.env['DB_SSL_NO_VERIFY'] === 'true')
       ? { rejectUnauthorized: false }
-      : (process.env['DB_SSL_NO_VERIFY'] === 'true' ? { rejectUnauthorized: false } : false);
+      : false;
 
-    console.log(`🔌 Initializing Prisma with SSL: ${JSON.stringify(sslConfig)}`);
+    console.log('🔌 Prisma Connection Config:');
+    console.log(`- SSL: ${JSON.stringify(sslConfig)}`);
+    console.log(`- Connection URI: ${dbUrl.replace(/:[^:@]+@/, ':****@')}`);
 
     const pool = new Pool({
-      connectionString: process.env['DATABASE_URL'],
+      connectionString: dbUrl,
       ssl: sslConfig,
     });
     const adapter = new PrismaPg(pool);
