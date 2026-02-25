@@ -10,16 +10,16 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
         const clientSecret = config.get<string>('GOOGLE_CLIENT_SECRET');
         const callbackURL = config.get<string>('GOOGLE_CALLBACK_URL') || 'http://localhost:4000/api/auth/google/callback';
 
-        if (!clientID || !clientSecret) {
-            console.warn('⚠️ Google OAuth is successfully initialized with DUMMY credentials because GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET are missing from .env');
-            // If not configured, use dummy values — Google OAuth simply won't work
+        if (!clientID || !clientSecret || clientID === 'not-configured') {
+            console.error('❌ GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET is missing! OAuth will fail with invalid_client.');
             super({
-                clientID: 'not-configured',
-                clientSecret: 'not-configured',
+                clientID: clientID || 'missing-client-id',
+                clientSecret: clientSecret || 'missing-client-secret',
                 callbackURL,
                 scope: ['email', 'profile'],
             });
         } else {
+            console.log(`✅ Google OAuth initialized with callback: ${callbackURL}`);
             super({
                 clientID,
                 clientSecret,

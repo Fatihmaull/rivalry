@@ -21,7 +21,10 @@ import { UploadModule } from './upload/upload.module';
 @Module({
     imports: [
         DiscoveryModule,
-        ConfigModule.forRoot({ isGlobal: true }),
+        ConfigModule.forRoot({
+            isGlobal: true,
+            envFilePath: ['.env', 'backend/.env'],
+        }),
         ThrottlerModule.forRoot([{
             ttl: 60000,   // 60 seconds window
             limit: 100,   // 100 requests per window
