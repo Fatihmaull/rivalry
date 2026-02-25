@@ -42,7 +42,7 @@ async function bootstrap() {
             : [
                 'http://localhost:3000',
                 'http://localhost:3001',
-                'https://rivalry-pearl.vercel.app'
+                'https://rivalry-ashy.vercel.app'
             ],
         credentials: true,
         methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',

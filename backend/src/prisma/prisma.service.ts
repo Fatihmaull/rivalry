@@ -10,12 +10,16 @@ const { PrismaPg } = require('@prisma/adapter-pg');
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   constructor() {
-    const sslConfig = process.env.DB_SSL_NO_VERIFY === 'true'
+    const isProd = process.env['NODE_ENV'] === 'production' || process.env['DATABASE_URL']?.includes('onrender.com') || process.env['DATABASE_URL']?.includes('supabase.com');
+
+    const sslConfig = isProd
       ? { rejectUnauthorized: false }
-      : (process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false);
+      : (process.env['DB_SSL_NO_VERIFY'] === 'true' ? { rejectUnauthorized: false } : false);
+
+    console.log(`🔌 Initializing Prisma with SSL: ${JSON.stringify(sslConfig)}`);
 
     const pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
+      connectionString: process.env['DATABASE_URL'],
       ssl: sslConfig,
     });
     const adapter = new PrismaPg(pool);
