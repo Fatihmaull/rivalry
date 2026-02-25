@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../context/AuthContext';
 import { api } from '../../../lib/api';
@@ -15,7 +15,7 @@ const categories = [
 ];
 
 export default function NewGoalPage() {
-    const { user } = useAuth();
+    const { user, loading: authLoading } = useAuth();
     const router = useRouter();
     const [category, setCategory] = useState('');
     const [title, setTitle] = useState('');
@@ -26,7 +26,15 @@ export default function NewGoalPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    if (!user) { router.push('/login'); return null; }
+    useEffect(() => {
+        if (!authLoading && !user) {
+            router.push('/login');
+        }
+    }, [user, authLoading, router]);
+
+    if (authLoading || !user) {
+        return <div className="page container">Loading...</div>;
+    }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

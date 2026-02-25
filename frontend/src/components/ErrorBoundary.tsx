@@ -48,7 +48,7 @@ export default class ErrorBoundary extends Component<Props, State> {
                             <button className="btn btn-primary" onClick={this.handleReset}>
                                 Try Again
                             </button>
-                            <button className="btn btn-outline" onClick={() => window.location.href = '/'}>
+                            <button className="btn btn-outline" onClick={() => { if (typeof window !== 'undefined') window.location.href = '/'; }}>
                                 Go Home
                             </button>
                         </div>
