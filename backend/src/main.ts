@@ -1,4 +1,10 @@
 import { NestFactory, HttpAdapterHost } from '@nestjs/core';
+// Global bypass for SSL certificate issues in production/external database connections
+if (process.env['NODE_ENV'] === 'production' || process.env['DATABASE_URL']?.includes('supabase.com')) {
+    process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = '0';
+    console.log('⚠️ Global TLS Verification Disabled for Database Connection');
+}
+
 import { ValidationPipe, Catch, ArgumentsHost, HttpException, HttpStatus, ExceptionFilter } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';

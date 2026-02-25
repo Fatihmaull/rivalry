@@ -11,17 +11,14 @@ const { PrismaPg } = require('@prisma/adapter-pg');
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   constructor() {
     const dbUrl = process.env['DATABASE_URL'] || '';
-    const isProd = process.env['NODE_ENV'] === 'production';
-    const isExternal = dbUrl.includes('supabase.com') || dbUrl.includes('onrender.com');
 
-    // Force skip SSL verification for any non-local database
-    const sslConfig = (isProd || isExternal || process.env['DB_SSL_NO_VERIFY'] === 'true')
-      ? { rejectUnauthorized: false }
-      : false;
+    // External databases (Render/Supabase) require skipping verification
+    const sslConfig = dbUrl.includes('localhost') || dbUrl.includes('127.0.0.1')
+      ? false
+      : { rejectUnauthorized: false };
 
     console.log('🔌 Prisma Connection Config:');
-    console.log(`- SSL: ${JSON.stringify(sslConfig)}`);
-    console.log(`- Connection URI: ${dbUrl.replace(/:[^:@]+@/, ':****@')}`);
+    console.log(`- SSL Reject: ${sslConfig ? (sslConfig as any).rejectUnauthorized : 'false'}`);
 
     const pool = new Pool({
       connectionString: dbUrl,
