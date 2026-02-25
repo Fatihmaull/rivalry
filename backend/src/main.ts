@@ -39,7 +39,11 @@ async function bootstrap() {
     app.enableCors({
         origin: process.env['CORS_ORIGIN']
             ? process.env['CORS_ORIGIN'].split(',')
-            : ['http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001'],
+            : [
+                'http://localhost:3000',
+                'http://localhost:3001',
+                'https://rivalry-pearl.vercel.app'
+            ],
         credentials: true,
         methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
         allowedHeaders: 'Content-Type,Accept,Authorization',
