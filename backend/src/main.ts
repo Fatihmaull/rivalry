@@ -32,7 +32,7 @@ class AllExceptionsFilter implements ExceptionFilter {
 
 async function bootstrap() {
     const app = await NestFactory.create<NestExpressApplication>(AppModule);
-    const { httpAdapterHost } = app.get(HttpAdapterHost);
+    const httpAdapterHost = app.get(HttpAdapterHost);
     app.useGlobalFilters(new AllExceptionsFilter(httpAdapterHost));
 
     // CORS for frontend
