@@ -122,7 +122,7 @@ export default function AdminUsers() {
                                     </td>
                                     <td style={tdStyle}>{u.profile?.reputationScore || 0}</td>
                                     <td style={tdStyle}>{winRate}%</td>
-                                    <td style={{ ...tdStyle, fontWeight: 600 }}>${(u.wallet?.balance || 0).toFixed(2)}</td>
+                                    <td style={{ ...tdStyle, fontWeight: 600 }}>${Number(u.wallet?.balance || 0).toFixed(2)}</td>
                                     <td style={tdStyle}>{u._count?.participants || 0}</td>
                                     <td style={{ ...tdStyle, fontSize: '0.75rem', color: 'var(--text-muted)' }}>{new Date(u.createdAt).toLocaleDateString()}</td>
                                     <td style={tdStyle}>

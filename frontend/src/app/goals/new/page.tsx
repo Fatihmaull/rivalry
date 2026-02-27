@@ -6,12 +6,12 @@ import { useAuth } from '../../../context/AuthContext';
 import { api } from '../../../lib/api';
 
 const categories = [
-    { id: 'fitness', label: 'Fitness', emoji: '💪' },
-    { id: 'learning', label: 'Learning', emoji: '📚' },
-    { id: 'career', label: 'Career', emoji: '💼' },
-    { id: 'business', label: 'Business', emoji: '🚀' },
-    { id: 'finance', label: 'Finance', emoji: '💰' },
-    { id: 'content_creation', label: 'Content Creation', emoji: '🎨' },
+    { id: 'fitness', label: 'FITNESS', icon: '◈' },
+    { id: 'learning', label: 'LEARNING', icon: '▣' },
+    { id: 'career', label: 'CAREER', icon: '◎' },
+    { id: 'business', label: 'BUSINESS', icon: '◇' },
+    { id: 'finance', label: 'FINANCE', icon: '◆' },
+    { id: 'content_creation', label: 'CONTENT', icon: '◉' },
 ];
 
 export default function NewGoalPage() {
@@ -38,7 +38,7 @@ export default function NewGoalPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!category) { setError('Please select a category'); return; }
+        if (!category) { setError('Please select a category area'); return; }
         setLoading(true);
         setError('');
         try {
@@ -52,78 +52,95 @@ export default function NewGoalPage() {
     };
 
     return (
-        <div className="page container" style={{ maxWidth: '600px' }}>
-            <h1 style={{ fontSize: '1.8rem', marginBottom: '32px' }}>
-                🎯 Set Your <span className="text-gradient">Goal</span>
-            </h1>
+        <div className="page container" style={{ maxWidth: '640px' }}>
+            <div className="animate-fade-in" style={{ marginBottom: '40px' }}>
+                <div className="mono-label" style={{ marginBottom: '12px' }}>NEW DIRECTIVE</div>
+                <h1 style={{ fontSize: 'clamp(2rem, 4vw, 2.5rem)', fontWeight: 800, letterSpacing: '-0.03em' }}>
+                    Declare Your <span className="text-gradient">Goal.</span>
+                </h1>
+                <p style={{ color: 'var(--text-muted)', marginTop: '8px', fontSize: '0.95rem' }}>
+                    Define your objective. This is the first step before launching into an arena.
+                </p>
+            </div>
 
             {error && (
-                <div style={{ background: 'var(--accent-red-glow)', border: '1px solid var(--accent-red)', borderRadius: 'var(--radius-sm)', padding: '12px', marginBottom: '20px', color: 'var(--accent-red)', fontSize: '0.875rem' }}>
+                <div className="alert-error animate-slide-up" style={{ marginBottom: '32px' }}>
                     {error}
                 </div>
             )}
 
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                <div>
-                    <label style={{ display: 'block', marginBottom: '12px', fontWeight: 500, color: 'var(--text-secondary)' }}>Category</label>
-                    <div className="grid-3" style={{ gap: '8px' }}>
+            <form onSubmit={handleSubmit} className="animate-slide-up" style={{ animationDelay: '0.1s' }}>
+
+                <div className="glass-card" style={{ padding: '32px', marginBottom: '24px' }}>
+                    <div style={{ display: 'block', marginBottom: '20px', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                        AREA OF FOCUS
+                    </div>
+
+                    <div className="grid-3" style={{ gap: '12px' }}>
                         {categories.map(cat => (
                             <button key={cat.id} type="button" onClick={() => setCategory(cat.id)}
                                 className="glass-card" style={{
-                                    padding: '16px', textAlign: 'center', cursor: 'pointer',
-                                    borderColor: category === cat.id ? 'var(--accent-blue)' : undefined,
-                                    background: category === cat.id ? 'var(--accent-blue-glow)' : undefined,
+                                    padding: '24px 16px', textAlign: 'center', cursor: 'pointer',
+                                    borderColor: category === cat.id ? 'var(--text-primary)' : 'var(--border-subtle)',
+                                    background: category === cat.id ? 'rgba(255,255,255,0.06)' : 'transparent',
+                                    transition: 'all var(--transition-fast)'
                                 }}>
-                                <div style={{ fontSize: '1.5rem', marginBottom: '4px' }}>{cat.emoji}</div>
-                                <div style={{ fontSize: '0.8rem', fontWeight: 500 }}>{cat.label}</div>
+                                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.4rem', marginBottom: '16px', color: category === cat.id ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                                    {cat.icon}
+                                </div>
+                                <div style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', letterSpacing: '0.05em', color: category === cat.id ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                                    {cat.label}
+                                </div>
                             </button>
                         ))}
                     </div>
                 </div>
 
-                <div className="input-group">
-                    <label>Goal Title</label>
-                    <input className="input" placeholder="e.g., Learn Python, Run a Marathon" value={title} onChange={e => setTitle(e.target.value)} required />
-                </div>
-
-                <div className="input-group">
-                    <label>Description (optional)</label>
-                    <textarea className="input" placeholder="Describe your goal..." value={description} onChange={e => setDescription(e.target.value)} rows={3} style={{ resize: 'vertical' }} />
-                </div>
-
-                <div className="grid-2" style={{ gap: '16px' }}>
+                <div className="card-premium" style={{ padding: '32px', marginBottom: '32px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
                     <div className="input-group">
-                        <label>Goal Type</label>
-                        <select className="select" value={goalType} onChange={e => setGoalType(e.target.value)}>
-                            <option value="skill">Skill</option>
-                            <option value="habit">Habit</option>
-                            <option value="project">Project</option>
-                            <option value="challenge">Challenge</option>
+                        <label>Directive Title</label>
+                        <input className="input" placeholder="e.g. Master React in 30 Days" value={title} onChange={e => setTitle(e.target.value)} required />
+                    </div>
+
+                    <div className="input-group">
+                        <label>Context / Description</label>
+                        <textarea className="input" placeholder="Provide additional details or constraints..." value={description} onChange={e => setDescription(e.target.value)} rows={3} style={{ resize: 'vertical' }} />
+                    </div>
+
+                    <div className="grid-2" style={{ gap: '20px' }}>
+                        <div className="input-group">
+                            <label>Classification</label>
+                            <select className="select" value={goalType} onChange={e => setGoalType(e.target.value)}>
+                                <option value="skill">Skill Acquisition</option>
+                                <option value="habit">Habit Formation</option>
+                                <option value="project">Project Execution</option>
+                                <option value="challenge">Endurance Challenge</option>
+                            </select>
+                        </div>
+                        <div className="input-group">
+                            <label>Difficulty Tier</label>
+                            <select className="select" value={difficulty} onChange={e => setDifficulty(e.target.value)}>
+                                <option value="easy">Routine</option>
+                                <option value="medium">Challenging</option>
+                                <option value="hard">Difficult</option>
+                                <option value="extreme">Extreme</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="input-group">
+                        <label>Target Timeline</label>
+                        <select className="select" value={timeline} onChange={e => setTimeline(e.target.value)}>
+                            <option value="1_week">1 Week (Sprint)</option>
+                            <option value="2_weeks">2 Weeks</option>
+                            <option value="1_month">1 Month</option>
+                            <option value="3_months">1 Quarter</option>
                         </select>
                     </div>
-                    <div className="input-group">
-                        <label>Difficulty</label>
-                        <select className="select" value={difficulty} onChange={e => setDifficulty(e.target.value)}>
-                            <option value="easy">Easy</option>
-                            <option value="medium">Medium</option>
-                            <option value="hard">Hard</option>
-                            <option value="extreme">Extreme</option>
-                        </select>
-                    </div>
                 </div>
 
-                <div className="input-group">
-                    <label>Timeline</label>
-                    <select className="select" value={timeline} onChange={e => setTimeline(e.target.value)}>
-                        <option value="1_week">1 Week</option>
-                        <option value="2_weeks">2 Weeks</option>
-                        <option value="1_month">1 Month</option>
-                        <option value="3_months">3 Months</option>
-                    </select>
-                </div>
-
-                <button type="submit" className="btn btn-primary btn-full btn-lg" disabled={loading}>
-                    {loading ? 'Creating...' : 'Create Goal'}
+                <button type="submit" className="btn btn-primary btn-full btn-lg" disabled={loading} style={{ padding: '16px' }}>
+                    {loading ? 'INITIALIZING...' : 'COMMIT TO GOAL'}
                 </button>
             </form>
         </div>

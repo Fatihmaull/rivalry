@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import ClientProviders from "../components/ClientProviders";
+import Footer from "../components/Footer";
 
 export const metadata: Metadata = {
-  title: "Rivalry — Turn Goals Into Competitions",
-  description: "A rival-based goal accountability platform. Compete, stay accountable, and win prizes by completing your goals.",
-  keywords: "goals, accountability, competition, rivalry, self-improvement, challenges",
+  title: "Rivalry — Competitive Goal Achievement",
+  description: "The competitive goal achievement platform. Get matched with rivals, follow AI-generated roadmaps, submit proof, and win prizes.",
+  keywords: "goals, accountability, competition, rivalry, self-improvement, challenges, compete",
 };
 
 export default function RootLayout({
@@ -18,6 +19,7 @@ export default function RootLayout({
       <body>
         <ClientProviders>
           {children}
+          <Footer />
         </ClientProviders>
       </body>
     </html>

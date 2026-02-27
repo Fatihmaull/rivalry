@@ -299,12 +299,14 @@ export class AdminService {
     async getAnalytics() {
         const now = new Date();
         const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
         const [
             totalUsers, activeUsers7d, totalGoals, completedGoals, activeGoals,
             totalRooms, activeRooms, completedRooms, disputedRooms,
             totalParticipants, totalPrizeAgg,
-            goalCats, skillLevels, roomTypes, roomStatuses
+            goalCats, skillLevels, roomTypes, roomStatuses,
+            recentUsersData, recentRoomsData
         ] = await Promise.all([
             this.prisma.user.count(),
             this.prisma.user.count({ where: { updatedAt: { gte: sevenDaysAgo } } }),
@@ -321,6 +323,8 @@ export class AdminService {
             this.prisma.profile.groupBy({ by: ['skillLevel'], _count: { id: true } }),
             this.prisma.room.groupBy({ by: ['type'], _count: { id: true } }),
             this.prisma.room.groupBy({ by: ['status'], _count: { id: true } }),
+            this.prisma.user.findMany({ where: { createdAt: { gte: thirtyDaysAgo } }, select: { createdAt: true } }),
+            this.prisma.room.findMany({ where: { createdAt: { gte: thirtyDaysAgo } }, select: { createdAt: true } }),
         ]);
 
         const topWinners = await this.prisma.profile.findMany({
@@ -328,6 +332,28 @@ export class AdminService {
             take: 10,
             include: { user: { select: { id: true, username: true } } }
         });
+
+        // Group time series data
+        const timeSeriesMap = new Map<string, { date: string, newUsers: number, newRooms: number }>();
+        for (let i = 29; i >= 0; i--) {
+            const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+            const dateStr = d.toISOString().split('T')[0];
+            timeSeriesMap.set(dateStr, { date: dateStr, newUsers: 0, newRooms: 0 });
+        }
+
+        const recentUsers = recentUsersData || await this.prisma.user.findMany({ where: { createdAt: { gte: thirtyDaysAgo } }, select: { createdAt: true } });
+        const recentRooms = recentRoomsData || await this.prisma.room.findMany({ where: { createdAt: { gte: thirtyDaysAgo } }, select: { createdAt: true } });
+
+        recentUsers.forEach((u: any) => {
+            const dateStr = u.createdAt.toISOString().split('T')[0];
+            if (timeSeriesMap.has(dateStr)) timeSeriesMap.get(dateStr)!.newUsers++;
+        });
+        recentRooms.forEach((r: any) => {
+            const dateStr = r.createdAt.toISOString().split('T')[0];
+            if (timeSeriesMap.has(dateStr)) timeSeriesMap.get(dateStr)!.newRooms++;
+        });
+
+        const timeSeriesData = Array.from(timeSeriesMap.values());
 
         return {
             goalCompletionRate: totalGoals > 0 ? Math.round((completedGoals / totalGoals) * 100) : 0,
@@ -345,6 +371,7 @@ export class AdminService {
             roomTypes: roomTypes.map(t => ({ type: t.type, count: t._count.id })),
             roomStatuses: roomStatuses.map(s => ({ status: s.status, count: s._count.id })),
             skillLevels: skillLevels.map(s => ({ level: s.skillLevel, count: s._count.id })),
+            timeSeriesData,
         };
     }
 

@@ -14,85 +14,110 @@ export default function AdminDashboard() {
             .finally(() => setLoading(false));
     }, []);
 
-    if (loading) return <div style={{ padding: '2rem', color: 'var(--text-secondary)' }}>Loading dashboard...</div>;
+    if (loading) {
+        return (
+            <div className="page container-wide" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+                <div className="skeleton" style={{ height: '120px', borderRadius: 'var(--radius-lg)' }} />
+                <div className="skeleton" style={{ height: '300px', borderRadius: 'var(--radius-lg)' }} />
+            </div>
+        );
+    }
 
     const statCards = [
-        { label: 'Total Users', value: stats?.totalUsers || 0, icon: '👥', color: '#3b82f6' },
-        { label: 'Active Today', value: stats?.activeToday || 0, icon: '🟢', color: '#22c55e' },
-        { label: 'Total Rooms', value: stats?.totalRooms || 0, icon: '🏆', color: '#f97316' },
-        { label: 'Active Competitions', value: stats?.activeRooms || 0, icon: '⚔️', color: '#ef4444' },
-        { label: 'Completed', value: stats?.completedRooms || 0, icon: '✅', color: '#10b981' },
-        { label: 'Total Deposits', value: `$${(stats?.totalDeposits || 0).toFixed(0)}`, icon: '💰', color: '#eab308' },
-        { label: 'Prize Pool', value: `$${(stats?.totalPrizePool || 0).toFixed(0)}`, icon: '🏅', color: '#8b5cf6' },
-        { label: 'Platform Revenue', value: `$${(stats?.platformRevenue || 0).toFixed(0)}`, icon: '📊', color: '#06b6d4' },
-        { label: 'Flagged/Disputed', value: stats?.flaggedContent || 0, icon: '⚠️', color: '#f43f5e' },
+        { label: 'Total Users', value: stats?.totalUsers || 0 },
+        { label: 'Active Today', value: stats?.activeToday || 0 },
+        { label: 'Total Rooms', value: stats?.totalRooms || 0 },
+        { label: 'Active Competitions', value: stats?.activeRooms || 0 },
+        { label: 'Completed', value: stats?.completedRooms || 0 },
+        { label: 'Total Deposits', value: `$${Number(stats?.totalDeposits || 0).toFixed(0)}` },
+        { label: 'Prize Pool', value: `$${Number(stats?.totalPrizePool || 0).toFixed(0)}` },
+        { label: 'Platform Revenue', value: `$${Number(stats?.platformRevenue || 0).toFixed(0)}`, color: 'var(--text-secondary)' },
+        { label: 'Flagged/Disputed', value: stats?.flaggedContent || 0, color: 'var(--error)' },
     ];
 
     return (
-        <div>
-            <div style={{ marginBottom: '1.5rem' }}>
-                <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Dashboard Overview</h1>
-                <p style={{ color: 'var(--text-muted)', margin: '0.25rem 0 0' }}>Real-time platform activity and metrics</p>
+        <div className="page container-wide">
+            {/* ═══ HEADER ═══ */}
+            <div className="animate-fade-in" style={{ marginBottom: '48px' }}>
+                <div className="mono-label" style={{ marginBottom: '8px' }}>ADMINISTRATION</div>
+                <h1 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', letterSpacing: '-0.03em' }}>
+                    System <span className="text-gradient">Overview</span>.
+                </h1>
             </div>
 
-            {/* Stats Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+            {/* ═══ STATS ═══ */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '24px', marginBottom: '64px' }} className="stagger">
                 {statCards.map(card => (
-                    <div key={card.label} style={{
-                        background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)', borderRadius: '12px', padding: '1.25rem',
-                        display: 'flex', flexDirection: 'column', gap: '0.5rem',
-                    }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 500 }}>{card.label}</span>
-                            <span style={{ fontSize: '1.25rem' }}>{card.icon}</span>
+                    <div key={card.label} className="glass-card" style={{ padding: '24px' }}>
+                        <div className="mono-label" style={{ marginBottom: '16px' }}>{card.label.toUpperCase()}</div>
+                        <div style={{ fontFamily: 'var(--font-display)', fontSize: '2.5rem', fontWeight: 800, lineHeight: 1, color: card.color || 'var(--text-primary)' }}>
+                            {card.value}
                         </div>
-                        <span style={{ fontSize: '1.5rem', fontWeight: 700, color: card.color }}>{card.value}</span>
                     </div>
                 ))}
             </div>
 
-            {/* Activity Feeds */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1.5rem' }}>
+            {/* ═══ DATA LISTS ═══ */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '48px' }}>
                 {/* Recent Users */}
-                <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)', borderRadius: '12px', padding: '1.25rem' }}>
-                    <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', color: 'var(--text-primary)' }}>🆕 Recent Users</h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <div>
+                    <div className="section-label">RECENT USERS</div>
+                    <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                         {activity?.recentUsers?.slice(0, 8).map((u: any) => (
-                            <div key={u.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem', padding: '0.4rem 0', borderBottom: '1px solid var(--border-secondary)' }}>
-                                <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{u.username}</span>
-                                <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{new Date(u.createdAt).toLocaleDateString()}</span>
+                            <div key={u.id} className="glass-card" style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{u.username}</span>
+                                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text-dim)' }}>
+                                    {new Date(u.createdAt).toLocaleDateString()}
+                                </span>
                             </div>
                         ))}
+                        {(!activity?.recentUsers || activity.recentUsers.length === 0) && (
+                            <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-dim)', fontSize: '0.85rem' }}>No recent users</div>
+                        )}
                     </div>
                 </div>
 
                 {/* Recent Rooms */}
-                <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)', borderRadius: '12px', padding: '1.25rem' }}>
-                    <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', color: 'var(--text-primary)' }}>🏆 Recent Rooms</h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <div>
+                    <div className="section-label">RECENT ROOMS</div>
+                    <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                         {activity?.recentRooms?.slice(0, 8).map((r: any) => (
-                            <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem', padding: '0.4rem 0', borderBottom: '1px solid var(--border-secondary)' }}>
-                                <span style={{ color: 'var(--text-primary)', fontWeight: 500, maxWidth: '60%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.title}</span>
-                                <span style={{
-                                    padding: '2px 8px', borderRadius: '12px', fontSize: '0.7rem', fontWeight: 600,
+                            <div key={r.id} className="glass-card" style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontWeight: 600, color: 'var(--text-primary)', maxWidth: '60%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {r.title}
+                                </span>
+                                <span className="badge" style={{
                                     background: r.status === 'active' ? 'rgba(34,197,94,0.15)' : r.status === 'completed' ? 'rgba(59,130,246,0.15)' : 'rgba(234,179,8,0.15)',
                                     color: r.status === 'active' ? '#22c55e' : r.status === 'completed' ? '#3b82f6' : '#eab308',
-                                }}>{r.status}</span>
+                                    border: 'none'
+                                }}>
+                                    {r.status}
+                                </span>
                             </div>
                         ))}
+                        {(!activity?.recentRooms || activity.recentRooms.length === 0) && (
+                            <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-dim)', fontSize: '0.85rem' }}>No recent rooms</div>
+                        )}
                     </div>
                 </div>
 
                 {/* Large Transactions */}
-                <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)', borderRadius: '12px', padding: '1.25rem' }}>
-                    <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', color: 'var(--text-primary)' }}>💰 Large Transactions</h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <div>
+                    <div className="section-label">LARGE TRANSACTIONS</div>
+                    <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                         {activity?.largeTransactions?.slice(0, 8).map((t: any) => (
-                            <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem', padding: '0.4rem 0', borderBottom: '1px solid var(--border-secondary)' }}>
-                                <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{t.wallet?.user?.username || 'Unknown'}</span>
-                                <span style={{ fontWeight: 600, color: t.amount > 0 ? '#22c55e' : '#ef4444' }}>${Math.abs(t.amount).toFixed(2)}</span>
+                            <div key={t.id} className="glass-card" style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontWeight: 600, color: 'var(--text-primary)', maxWidth: '60%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {t.wallet?.user?.username || 'Unknown'}
+                                </span>
+                                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: t.amount > 0 ? '#22c55e' : t.amount < 0 ? '#ef4444' : 'var(--text-secondary)' }}>
+                                    {t.amount > 0 ? '+' : ''}{t.amount < 0 ? '-' : ''}${Math.abs(t.amount).toFixed(2)}
+                                </span>
                             </div>
                         ))}
+                        {(!activity?.largeTransactions || activity.largeTransactions.length === 0) && (
+                            <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-dim)', fontSize: '0.85rem' }}>No recent transactions</div>
+                        )}
                     </div>
                 </div>
             </div>

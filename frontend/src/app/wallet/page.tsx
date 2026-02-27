@@ -44,9 +44,9 @@ export default function WalletPage() {
         return (
             <div className="page container">
                 <div className="empty-state">
-                    <div className="empty-state-icon">🔒</div>
-                    <div className="empty-state-title">Please log in</div>
-                    <Link href="/login" className="btn btn-primary">Log In</Link>
+                    <div className="empty-state-icon" style={{ fontFamily: 'var(--font-mono)' }}>[ ! ]</div>
+                    <div className="empty-state-title">Authentication Required</div>
+                    <Link href="/login" className="btn btn-primary" style={{ marginTop: '16px' }}>Log In</Link>
                 </div>
             </div>
         );
@@ -54,53 +54,76 @@ export default function WalletPage() {
 
     return (
         <div className="page container" style={{ maxWidth: '700px' }}>
-            <h1 style={{ fontSize: '1.8rem', marginBottom: '24px' }}>💰 <span className="text-gradient">Wallet</span></h1>
-
-            {/* Balance Card */}
-            <div className="glass-card animate-slide-up" style={{ textAlign: 'center', padding: '40px', marginBottom: '24px', background: 'var(--gradient-card)', borderColor: 'var(--border-accent)' }}>
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '8px' }}>AVAILABLE BALANCE</div>
-                <div style={{ fontSize: '3rem', fontWeight: 900, fontFamily: 'var(--font-display)' }} className="text-gradient">
-                    {Number(wallet?.balance || 0).toFixed(2)}
-                </div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>credits</div>
+            <div className="animate-fade-in" style={{ marginBottom: '40px' }}>
+                <div className="mono-label" style={{ marginBottom: '8px' }}>FINANCE</div>
+                <h1 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: 800, letterSpacing: '-0.03em' }}>
+                    <span className="text-gradient">Wallet.</span>
+                </h1>
             </div>
 
-            {/* Actions */}
-            <div className="glass-card" style={{ marginBottom: '24px' }}>
-                <div className="input-group" style={{ marginBottom: '16px' }}>
-                    <label>Amount</label>
-                    <input className="input" type="number" min="1" value={amount} onChange={e => setAmount(Number(e.target.value))} />
+            {/* ═══ BALANCE CARD ═══ */}
+            <div className="card-premium animate-slide-up" style={{ textAlign: 'center', padding: '64px 24px', marginBottom: '32px' }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '16px', letterSpacing: '0.1em' }}>
+                    AVAILABLE BALANCE
                 </div>
-                <div style={{ display: 'flex', gap: '12px' }}>
-                    <button onClick={handleTopUp} className="btn btn-primary" style={{ flex: 1 }} disabled={!!action}>
-                        {action === 'topup' ? 'Processing...' : '⬆️ Top Up'}
+                <div style={{ fontSize: 'clamp(3rem, 6vw, 4.5rem)', fontWeight: 900, fontFamily: 'var(--font-display)', lineHeight: 1, marginBottom: '8px' }}>
+                    {Number(wallet?.balance || 0).toFixed(0)}
+                </div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>CREDITS</div>
+            </div>
+
+            {/* ═══ ACTIONS ═══ */}
+            <div className="glass-card" style={{ marginBottom: '48px', padding: '32px' }}>
+                <div className="input-group" style={{ marginBottom: '24px' }}>
+                    <label style={{ fontFamily: 'var(--font-mono)' }}>OPERATION AMOUNT</label>
+                    <input className="input" type="number" min="1" value={amount} onChange={e => setAmount(Number(e.target.value))} style={{ fontSize: '1.2rem', padding: '16px' }} />
+                </div>
+                <div className="grid-2">
+                    <button onClick={handleTopUp} className="btn btn-primary btn-lg" disabled={!!action}>
+                        {action === 'topup' ? 'PROCESSING...' : 'DEPOSIT FUNDING'}
                     </button>
-                    <button onClick={handleWithdraw} className="btn btn-outline" style={{ flex: 1 }} disabled={!!action}>
-                        {action === 'withdraw' ? 'Processing...' : '⬇️ Withdraw'}
+                    <button onClick={handleWithdraw} className="btn btn-secondary btn-lg" disabled={!!action}>
+                        {action === 'withdraw' ? 'PROCESSING...' : 'WITHDRAW FUNDS'}
                     </button>
                 </div>
             </div>
 
-            {/* Transactions */}
-            <h2 style={{ fontSize: '1.2rem', marginBottom: '16px' }}>Transaction History</h2>
-            {wallet?.transactions?.length ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    {wallet.transactions.map((tx: any) => (
-                        <div key={tx.id} className="glass-card" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <div>
-                                <span className={`badge badge-${Number(tx.amount) >= 0 ? 'green' : 'red'}`} style={{ marginRight: '8px' }}>
-                                    {tx.type}
+            {/* ═══ TRANSACTIONS ═══ */}
+            <div className="mono-label" style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                TRANSACTION HISTORY
+                <span style={{ height: '1px', flex: 1, background: 'var(--border-subtle)' }} />
+            </div>
+
+            {loading ? (
+                <div className="skeleton" style={{ height: '200px', borderRadius: 'var(--radius-md)' }} />
+            ) : wallet?.transactions?.length ? (
+                <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {wallet.transactions.map((tx: any) => {
+                        const isPositive = Number(tx.amount) > 0;
+                        return (
+                            <div key={tx.id} className="glass-card" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderLeft: `2px solid ${isPositive ? 'var(--text-primary)' : 'var(--text-dim)'}` }}>
+                                <div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
+                                        <span className="badge badge-default" style={{ fontSize: '0.65rem', border: '1px solid var(--border-subtle)' }}>
+                                            {tx.type.replace('_', ' ').toUpperCase()}
+                                        </span>
+                                        <span style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>{tx.description}</span>
+                                    </div>
+                                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text-dim)' }}>
+                                        {new Date(tx.createdAt).toLocaleString()}
+                                    </div>
+                                </div>
+                                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '1.05rem', fontWeight: 600, color: isPositive ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                                    {isPositive ? '+' : ''}{Number(tx.amount).toFixed(0)}
                                 </span>
-                                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{tx.description}</span>
                             </div>
-                            <span style={{ fontWeight: 700, color: Number(tx.amount) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-                                {Number(tx.amount) > 0 ? '+' : ''}{Number(tx.amount).toFixed(2)}
-                            </span>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             ) : (
-                <div className="empty-state"><div className="empty-state-text">No transactions yet</div></div>
+                <div className="empty-state" style={{ border: '1px dashed var(--border-subtle)', borderRadius: 'var(--radius-lg)', padding: '40px' }}>
+                    <div className="empty-state-text">No transaction ledger entries found.</div>
+                </div>
             )}
         </div>
     );

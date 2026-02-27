@@ -3,17 +3,27 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
+import { useEffect, useState } from 'react';
 
 export default function Navbar() {
     const { user, logout } = useAuth();
     const pathname = usePathname();
+    const [scrolled, setScrolled] = useState(false);
+
+    useEffect(() => {
+        const handleScroll = () => {
+            setScrolled(window.scrollY > 20);
+        };
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
 
     return (
         <>
-            <nav className="nav">
+            <nav className={`nav ${scrolled ? 'scrolled' : ''}`}>
                 <div className="nav-content">
                     <Link href="/" className="nav-logo">
-                        <span className="text-gradient">Rivalry</span>
+                        Rivalry
                     </Link>
                     <div className="nav-links">
                         {user ? (
@@ -25,7 +35,7 @@ export default function Navbar() {
                                     Rooms
                                 </Link>
                                 <Link href="/matchmaking" className={`nav-link ${pathname === '/matchmaking' ? 'active' : ''}`}>
-                                    Find Rivals
+                                    Rivals
                                 </Link>
                                 <Link href="/feed" className={`nav-link ${pathname === '/feed' ? 'active' : ''}`}>
                                     Feed
@@ -36,7 +46,7 @@ export default function Navbar() {
                                 <Link href={`/profile/${user.id}`} className="avatar avatar-sm" title={user.username}>
                                     {user.username[0].toUpperCase()}
                                 </Link>
-                                <button onClick={logout} className="nav-link" style={{ color: 'var(--accent-red)' }}>
+                                <button onClick={logout} className="btn-ghost" style={{ fontSize: '0.8rem' }}>
                                     Logout
                                 </button>
                             </>
@@ -54,23 +64,23 @@ export default function Navbar() {
             {user && (
                 <div className="bottom-nav">
                     <Link href="/dashboard" className={`bottom-nav-item ${pathname === '/dashboard' ? 'active' : ''}`}>
-                        <span className="nav-icon">🏠</span>
+                        <span className="nav-icon">◉</span>
                         Home
                     </Link>
                     <Link href="/rooms" className={`bottom-nav-item ${pathname.startsWith('/rooms') ? 'active' : ''}`}>
-                        <span className="nav-icon">⚔️</span>
+                        <span className="nav-icon">◈</span>
                         Rooms
                     </Link>
                     <Link href="/matchmaking" className={`bottom-nav-item ${pathname === '/matchmaking' ? 'active' : ''}`}>
-                        <span className="nav-icon">🎯</span>
+                        <span className="nav-icon">⚡</span>
                         Rivals
                     </Link>
                     <Link href="/feed" className={`bottom-nav-item ${pathname === '/feed' ? 'active' : ''}`}>
-                        <span className="nav-icon">📱</span>
+                        <span className="nav-icon">◎</span>
                         Feed
                     </Link>
                     <Link href={`/profile/${user.id}`} className={`bottom-nav-item ${pathname.startsWith('/profile') ? 'active' : ''}`}>
-                        <span className="nav-icon">👤</span>
+                        <span className="nav-icon">◆</span>
                         Profile
                     </Link>
                 </div>

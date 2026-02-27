@@ -65,7 +65,7 @@ export default function AdminTransactions() {
                                 <td style={{ ...tdStyle, fontFamily: 'monospace', fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t.id.slice(0, 8)}</td>
                                 <td style={tdStyle}>{t.wallet?.user?.username || '—'}</td>
                                 <td style={tdStyle}><span style={{ color: typeColors[t.type] || '#fff', fontWeight: 600, fontSize: '0.8rem' }}>{t.type.replace('_', ' ')}</span></td>
-                                <td style={{ ...tdStyle, fontWeight: 700, color: t.amount >= 0 ? '#22c55e' : '#ef4444' }}>{t.amount >= 0 ? '+' : ''}{t.amount.toFixed(2)}</td>
+                                <td style={{ ...tdStyle, fontWeight: 700, color: Number(t.amount) >= 0 ? '#22c55e' : '#ef4444' }}>{Number(t.amount) >= 0 ? '+' : ''}{Number(t.amount).toFixed(2)}</td>
                                 <td style={tdStyle}>
                                     <span style={{
                                         padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600,
