@@ -128,6 +128,10 @@ class ApiClient {
         return this.request<Room>('/rooms', { method: 'POST', body: JSON.stringify(data) });
     }
     joinRoom(id: string) { return this.request<{ message: string }>(`/rooms/${id}/join`, { method: 'POST' }); }
+    agreeToRoadmap(id: string) { return this.request<{ message: string }>(`/rooms/${id}/agree`, { method: 'POST' }); }
+    startRoom(id: string) { return this.request<{ message: string }>(`/rooms/${id}/start`, { method: 'POST' }); }
+    notifyRoomPlayers(id: string) { return this.request<{ success: boolean; message: string }>(`/rooms/${id}/notify`, { method: 'POST' }); }
+    reportWinner(id: string) { return this.request<{ message: string }>(`/rooms/${id}/report`, { method: 'POST' }); }
     completeRoom(id: string) { return this.request<Room>(`/rooms/${id}/complete`, { method: 'POST' }); }
     getMyRooms() { return this.request<Room[]>('/rooms/mine'); }
 
@@ -137,10 +141,18 @@ class ApiClient {
         return this.request<MatchInvite>('/matchmaking/invite', { method: 'POST', body: JSON.stringify(data) });
     }
     getInvites() { return this.request<MatchInvite[]>('/matchmaking/invites'); }
+    acceptInvite(inviteId: string) { return this.request<{ message: string, roomId?: string }>(`/matchmaking/invites/${inviteId}/accept`, { method: 'POST' }); }
+    declineInvite(inviteId: string) { return this.request<{ message: string }>(`/matchmaking/invites/${inviteId}/decline`, { method: 'POST' }); }
 
     // Proof
     submitProof(milestoneId: string, data: { type: string; content: string }) {
         return this.request<ProofSubmission>(`/proof/milestone/${milestoneId}`, { method: 'POST', body: JSON.stringify(data) });
+    }
+    reviewProof(proofId: string, approved: boolean) {
+        return this.request<ProofSubmission>(`/proof/${proofId}/review`, { method: 'POST', body: JSON.stringify({ approved }) });
+    }
+    getPendingProofs(roomId: string) {
+        return this.request<ProofSubmission[]>(`/proof/room/${roomId}/pending`);
     }
 
     // Wallet
@@ -152,6 +164,9 @@ class ApiClient {
     getFeed(page?: number) { return this.request<Post[]>(`/feed?page=${page || 1}`); }
     createPost(data: { type: string; content: string }) {
         return this.request<Post>('/feed', { method: 'POST', body: JSON.stringify(data) });
+    }
+    votePost(postId: string, voteType: number) {
+        return this.request<{ score: number; userVote: number }>(`/feed/${postId}/vote`, { method: 'POST', body: JSON.stringify({ voteType }) });
     }
 
     // Observer

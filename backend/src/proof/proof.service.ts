@@ -37,7 +37,8 @@ export class ProofService {
             data: {
                 roomId: milestone.roadmap.roomId,
                 type: 'proof_submitted',
-                content: `${user?.username} submitted proof for: ${milestone.title}`,
+                content: `${user?.username} submitted proof for: ${milestone.title}\n\nContent: ${data.content}`,
+                mediaUrl: data.fileUrl || null,
                 userId,
             },
         });
@@ -138,7 +139,7 @@ export class ProofService {
         });
 
         // Auto-complete if 100% and it's a 1v1 room
-        if (progress >= 100 && roomType === '1v1') {
+        if (progress >= 100 && (roomType === '1v1' || roomType === 'group' || roomType === 'free_for_all')) {
             await this.roomsService.completeRoom(roomId);
         }
     }

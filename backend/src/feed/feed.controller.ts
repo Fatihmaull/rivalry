@@ -18,9 +18,11 @@ export class FeedController {
         return this.feedService.getFeed(req.user.sub, parseInt(page || '1'));
     }
 
+    @UseGuards(JwtAuthGuard)
     @Get('explore')
-    async getExplore(@Query('page') page?: string) {
-        return this.feedService.getExploreFeed(parseInt(page || '1'));
+    async getExplore(@Request() req: any, @Query('page') page?: string) {
+        // Explore can also have user context (for UI highlighting votes)
+        return this.feedService.getExploreFeed(req?.user?.sub, parseInt(page || '1'));
     }
 
     @UseGuards(JwtAuthGuard)
@@ -32,5 +34,11 @@ export class FeedController {
     @Get(':postId/comments')
     async getComments(@Param('postId') postId: string) {
         return this.feedService.getComments(postId);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Post(':postId/vote')
+    async votePost(@Request() req: any, @Param('postId') postId: string, @Body() body: { voteType: number }) {
+        return this.feedService.votePost(req.user.sub, postId, body.voteType);
     }
 }

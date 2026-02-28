@@ -110,4 +110,68 @@ export class SchedulerService {
             }
         }
     }
+
+    @Cron(CronExpression.EVERY_5_MINUTES)
+    async handlePreActiveTimeouts() {
+        this.logger.log('Checking for pre-active room timeouts...');
+        const now = new Date();
+
+        // 1. Check agreement timeouts
+        const expiredAgreement = await this.prisma.room.findMany({
+            where: {
+                status: 'waiting_for_agreement',
+                agreementDeadline: { lte: now },
+            },
+            include: { participants: true }
+        });
+
+        for (const room of expiredAgreement) {
+            try {
+                await this.prisma.room.update({
+                    where: { id: room.id },
+                    data: { status: 'expired' }
+                });
+
+                if (Number(room.entryDeposit) > 0) {
+                    for (const p of room.participants) {
+                        await this.walletService.refund(p.userId, Number(room.entryDeposit), room.id);
+                    }
+                }
+
+                this.gateway.notifyRoomUpdate(room.id, 'room:expired', { roomId: room.id, reason: 'Agreement timeout' });
+                this.logger.log(`Room ${room.id} expired (Agreement timeout).`);
+            } catch (error) {
+                this.logger.error(`Failed to expire agreement timeout room ${room.id}:`, error);
+            }
+        }
+
+        // 2. Check start timeouts
+        const expiredStart = await this.prisma.room.findMany({
+            where: {
+                status: 'waiting_for_start',
+                startDeadline: { lte: now },
+            },
+            include: { participants: true }
+        });
+
+        for (const room of expiredStart) {
+            try {
+                await this.prisma.room.update({
+                    where: { id: room.id },
+                    data: { status: 'expired' }
+                });
+
+                if (Number(room.entryDeposit) > 0) {
+                    for (const p of room.participants) {
+                        await this.walletService.refund(p.userId, Number(room.entryDeposit), room.id);
+                    }
+                }
+
+                this.gateway.notifyRoomUpdate(room.id, 'room:expired', { roomId: room.id, reason: 'Start timeout' });
+                this.logger.log(`Room ${room.id} expired (Start timeout).`);
+            } catch (error) {
+                this.logger.error(`Failed to expire start timeout room ${room.id}:`, error);
+            }
+        }
+    }
 }

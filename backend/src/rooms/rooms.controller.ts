@@ -40,8 +40,32 @@ export class RoomsController {
     }
 
     @UseGuards(JwtAuthGuard)
+    @Post(':id/agree')
+    async agreeToRoadmap(@Request() req: any, @Param('id') id: string) {
+        return this.roomsService.agreeToRoadmap(req.user.sub, id);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Post(':id/start')
+    async startRoom(@Request() req: any, @Param('id') id: string) {
+        return this.roomsService.startRoomIfReady(req.user.sub, id);
+    }
+
+    @UseGuards(JwtAuthGuard)
     @Post(':id/complete')
     async completeRoom(@Param('id') id: string) {
         return this.roomsService.completeRoom(id);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Post(':id/notify')
+    async notifyPlayers(@Request() req: any, @Param('id') id: string) {
+        return this.roomsService.pokePlayers(req.user.sub, id);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Post(':id/report')
+    async reportWinner(@Request() req: any, @Param('id') id: string) {
+        return this.roomsService.reportWinner(req.user.sub, id);
     }
 }

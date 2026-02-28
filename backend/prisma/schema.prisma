@@ -31,6 +31,7 @@ model User {
   proofs        ProofSubmission[]
   posts         Post[]
   comments      Comment[]
+  postVotes     PostVote[]
   followers     Follow[]         @relation("Following")
   following     Follow[]         @relation("Follower")
   observers     Observer[]
@@ -120,7 +121,7 @@ model Room {
   title         String
   description   String?
   type          String   @default("1v1") // 1v1, group, free_for_all
-  status        String   @default("waiting") // waiting, active, completed, disputed, cancelled
+  status        String   @default("waiting") // draft, waiting_for_agreement, waiting_for_start, active, expired, completed, disputed, cancelled
   maxPlayers    Int      @default(2)
   entryDeposit  Decimal  @default(0)
   prizePool     Decimal  @default(0)
@@ -129,6 +130,8 @@ model Room {
   startDate     DateTime?
   endDate       DateTime?
   winnerId      String?
+  agreementDeadline DateTime?
+  startDeadline     DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -147,6 +150,8 @@ model Participant {
   status     String   @default("active") // active, completed, withdrawn, disqualified
   progress   Decimal  @default(0) // 0 to 100
   rank       Int?
+  hasAgreed  Boolean  @default(false)
+  hasStarted Boolean  @default(false)
   joinedAt   DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -213,6 +218,7 @@ model RoomFeedItem {
   roomId    String
   type      String   // milestone_completed, proof_submitted, player_joined, message
   content   String
+  mediaUrl  String?
   userId    String?
   createdAt DateTime @default(now())
 
@@ -227,11 +233,26 @@ model Post {
   content   String
   imageUrl  String?
   roomId    String?
+  score     Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   comments Comment[]
+  votes    PostVote[]
+}
+
+model PostVote {
+  id        String   @id @default(uuid())
+  userId    String
+  postId    String
+  voteType  Int      // 1 for upvote, -1 for downvote
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
 }
 
 model Comment {
@@ -260,15 +281,18 @@ model Observer {
 
 // ─── Matchmaking ──────────────────────────────────────────
 model MatchInvite {
-  id         String   @id @default(uuid())
-  senderId   String
-  receiverId String
-  goalId     String?
-  roomId     String?
-  status     String   @default("pending") // pending, accepted, declined, expired
-  message    String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id               String   @id @default(uuid())
+  senderId         String
+  receiverId       String
+  goalId           String?
+  roomId           String?
+  competitionType  String?
+  interestCategory String?
+  inviteCode       String?  @unique
+  status           String   @default("pending") // pending, accepted, declined, expired
+  message          String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   sender   User @relation("InviteSender", fields: [senderId], references: [id], onDelete: Cascade)
   receiver User @relation("InviteReceiver", fields: [receiverId], references: [id], onDelete: Cascade)

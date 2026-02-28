@@ -43,6 +43,11 @@ export default function Navbar() {
                                 <Link href="/wallet" className={`nav-link ${pathname === '/wallet' ? 'active' : ''}`}>
                                     Wallet
                                 </Link>
+                                {user.role === 'super_admin' && (
+                                    <Link href="/admin/dashboard" className={`nav-link ${pathname.startsWith('/admin') ? 'active' : ''}`} style={{ color: 'var(--accent)', fontWeight: 600 }}>
+                                        Admin
+                                    </Link>
+                                )}
                                 <Link href={`/profile/${user.id}`} className="avatar avatar-sm" title={user.username}>
                                     {user.username[0].toUpperCase()}
                                 </Link>
@@ -83,6 +88,12 @@ export default function Navbar() {
                         <span className="nav-icon">◆</span>
                         Profile
                     </Link>
+                    {user.role === 'super_admin' && (
+                        <Link href="/admin/dashboard" className={`bottom-nav-item ${pathname.startsWith('/admin') ? 'active' : ''}`}>
+                            <span className="nav-icon" style={{ color: 'var(--accent)' }}>⚙</span>
+                            Admin
+                        </Link>
+                    )}
                 </div>
             )}
         </>

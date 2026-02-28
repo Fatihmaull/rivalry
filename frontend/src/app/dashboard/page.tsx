@@ -1,15 +1,24 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
-import { useMyRooms, useGoals, useUserStats } from '../../lib/hooks';
-import type { Room, Goal, UserStats } from '../../lib/types';
+import { useMyRooms, useGoals, useUserStats, useInvites } from '../../lib/hooks';
+import { api } from '../../lib/api';
+import { toast } from '../../lib/toast';
+import type { Room, Goal } from '../../lib/types';
 
 export default function DashboardPage() {
     const { user } = useAuth();
+    const router = useRouter();
     const { data: rooms = [], isLoading: roomsLoading } = useMyRooms();
     const { data: goals = [], isLoading: goalsLoading } = useGoals();
     const { data: stats } = useUserStats(user?.id);
+    const { data: invites = [], mutate: mutateInvites } = useInvites();
+
+    const [showNotifications, setShowNotifications] = useState(false);
+    const [processingId, setProcessingId] = useState<string | null>(null);
 
     const loading = roomsLoading || goalsLoading;
 
@@ -33,17 +42,151 @@ export default function DashboardPage() {
     const hour = new Date().getHours();
     const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
+    const handleAccept = async (inviteId: string) => {
+        setProcessingId(inviteId);
+        try {
+            const res = await api.acceptInvite(inviteId);
+            toast.success('Invite accepted! Joining room...');
+            mutateInvites();
+            if (res.roomId) {
+                router.push(`/rooms/${res.roomId}`);
+            }
+        } catch (err: any) {
+            toast.error(err.message || 'Failed to accept invite');
+        } finally {
+            setProcessingId(null);
+            setShowNotifications(false);
+        }
+    };
+
+    const handleDecline = async (inviteId: string) => {
+        setProcessingId(inviteId);
+        try {
+            await api.declineInvite(inviteId);
+            toast.success('Invite declined.');
+            mutateInvites();
+        } catch (err: any) {
+            toast.error(err.message || 'Failed to decline invite');
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
     return (
         <div className="page container-wide">
             {/* ═══ HEADER ═══ */}
-            <div className="animate-fade-in" style={{ marginBottom: '48px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '24px' }}>
+            <div className="animate-fade-in" style={{ marginBottom: '48px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '24px', position: 'relative', zIndex: 100 }}>
                 <div>
                     <div className="mono-label" style={{ marginBottom: '8px' }}>DASHBOARD OVERVIEW</div>
                     <h1 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', letterSpacing: '-0.03em' }}>
                         {greeting}, <span className="text-gradient">{user.username}</span>.
                     </h1>
                 </div>
-                <div style={{ display: 'flex', gap: '12px' }}>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    {/* Notification Dropdown Container */}
+                    <div style={{ position: 'relative', zIndex: 1000 }}>
+                        <button
+                            onClick={() => setShowNotifications(!showNotifications)}
+                            className="btn btn-icon"
+                            style={{
+                                background: showNotifications ? 'var(--bg-layer-2)' : 'transparent',
+                                border: '1px solid var(--border-medium)',
+                                padding: '10px',
+                                position: 'relative',
+                                borderRadius: '50%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                width: '42px',
+                                height: '42px'
+                            }}
+                        >
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                            </svg>
+                            {invites.length > 0 && (
+                                <span style={{
+                                    position: 'absolute',
+                                    top: '-2px',
+                                    right: '-2px',
+                                    background: 'var(--accent)',
+                                    color: '#000',
+                                    fontSize: '0.65rem',
+                                    fontWeight: 800,
+                                    width: '18px',
+                                    height: '18px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    borderRadius: '50%',
+                                    border: '2px solid var(--bg-body)'
+                                }}>
+                                    {invites.length}
+                                </span>
+                            )}
+                        </button>
+
+                        {/* Dropdown Panel */}
+                        {showNotifications && (
+                            <div className="glass-card animate-slide-up" style={{
+                                position: 'absolute',
+                                top: 'calc(100% + 12px)',
+                                right: 0,
+                                width: '320px',
+                                padding: '0',
+                                zIndex: 100,
+                                background: 'rgba(20, 20, 20, 0.95)',
+                                backdropFilter: 'blur(16px)',
+                                WebkitBackdropFilter: 'blur(16px)',
+                                boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+                                border: '1px solid var(--border-medium)',
+                                overflow: 'hidden'
+                            }}>
+                                <div style={{ padding: '16px', borderBottom: '1px solid var(--border-subtle)', background: 'rgba(255,255,255,0.02)' }}>
+                                    <h3 style={{ fontSize: '0.9rem', fontWeight: 600, margin: 0 }}>Pending Invites</h3>
+                                </div>
+                                <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                                    {invites.length === 0 ? (
+                                        <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                                            No new notifications
+                                        </div>
+                                    ) : (
+                                        invites.map((inv) => (
+                                            <div key={inv.id} style={{ padding: '16px', borderBottom: '1px solid var(--border-subtle)' }}>
+                                                <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', marginBottom: '12px' }}>
+                                                    <div className="avatar avatar-sm">{inv.sender?.username?.[0]?.toUpperCase()}</div>
+                                                    <div>
+                                                        <div style={{ fontSize: '0.9rem', fontWeight: 600 }}>@{inv.sender?.username}</div>
+                                                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px' }}>{inv.message || 'Invited you to compete.'}</div>
+                                                    </div>
+                                                </div>
+                                                <div style={{ display: 'flex', gap: '8px' }}>
+                                                    <button
+                                                        onClick={() => handleAccept(inv.id)}
+                                                        className="btn btn-primary btn-sm"
+                                                        style={{ flex: 1 }}
+                                                        disabled={processingId === inv.id}
+                                                    >
+                                                        {processingId === inv.id ? '...' : 'Accept'}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDecline(inv.id)}
+                                                        className="btn btn-outline btn-sm"
+                                                        style={{ flex: 1 }}
+                                                        disabled={processingId === inv.id}
+                                                    >
+                                                        Decline
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
                     <Link href="/goals/new" className="btn btn-primary">
                         + New Goal
                     </Link>

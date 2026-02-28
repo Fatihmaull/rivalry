@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
+import { toast } from '../../../lib/toast';
 
 export default function AdminInterests() {
     const [interests, setInterests] = useState<any[]>([]);
@@ -60,12 +61,12 @@ export default function AdminInterests() {
             if (editing) { await api.adminUpdateInterest(editing.id, form); }
             else { await api.adminCreateInterest(form); }
             setShowForm(false); setEditing(null); setForm({ name: '', description: '', icon: '', color: '#3b82f6' }); load();
-        } catch (e: any) { alert(e.message); }
+        } catch (e: any) { toast.error(e.message || 'An error occurred'); }
     };
 
     const handleDelete = async (id: string) => {
         if (!confirm('Delete this interest?')) return;
-        try { await api.adminDeleteInterest(id); load(); } catch (e: any) { alert(e.message); }
+        try { await api.adminDeleteInterest(id); load(); } catch (e: any) { toast.error(e.message || 'An error occurred'); }
     };
 
     const openEdit = (i: any) => {

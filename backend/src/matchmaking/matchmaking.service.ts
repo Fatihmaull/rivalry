@@ -1,9 +1,15 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { RoomsService } from '../rooms/rooms.service';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class MatchmakingService {
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(
+        private readonly prisma: PrismaService,
+        @Inject(forwardRef(() => RoomsService))
+        private readonly roomsService: RoomsService
+    ) { }
 
     async findRivals(userId: string) {
         const user = await this.prisma.user.findUnique({
@@ -55,9 +61,19 @@ export class MatchmakingService {
         return Math.abs(levels.indexOf(a) - levels.indexOf(b));
     }
 
-    async sendInvite(senderId: string, receiverId: string, goalId?: string, message?: string) {
+    async sendInvite(senderId: string, receiverId: string, data: { goalId?: string; roomId?: string; competitionType?: string; interestCategory?: string; message?: string }) {
+        const inviteCode = uuidv4().replace(/-/g, '').substring(0, 10);
         return this.prisma.matchInvite.create({
-            data: { senderId, receiverId, goalId, message },
+            data: {
+                senderId,
+                receiverId,
+                goalId: data.goalId,
+                roomId: data.roomId,
+                competitionType: data.competitionType,
+                interestCategory: data.interestCategory,
+                message: data.message,
+                inviteCode
+            },
             include: {
                 sender: { select: { id: true, username: true, avatarUrl: true } },
                 receiver: { select: { id: true, username: true, avatarUrl: true } },
@@ -79,9 +95,17 @@ export class MatchmakingService {
         const invite = await this.prisma.matchInvite.findUnique({ where: { id: inviteId } });
         if (!invite || invite.receiverId !== userId) return null;
 
-        return this.prisma.matchInvite.update({
+        const updatedInvite = await this.prisma.matchInvite.update({
             where: { id: inviteId },
             data: { status: accept ? 'accepted' : 'declined' },
         });
+
+        const targetRoomId = invite.roomId || invite.goalId;
+        if (accept && targetRoomId) {
+            // Auto-join the room
+            await this.roomsService.joinRoom(userId, targetRoomId);
+        }
+
+        return updatedInvite;
     }
 }

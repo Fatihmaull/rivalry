@@ -90,6 +90,38 @@ export class WalletService {
         return this.getWallet(userId);
     }
 
+    async refund(userId: string, amount: number, roomId: string) {
+        if (amount <= 0) return this.getWallet(userId);
+
+        await this.prisma.$transaction(async (tx) => {
+            const wallet = await tx.wallet.findUnique({ where: { userId } });
+            if (!wallet) throw new NotFoundException('Wallet not found');
+
+            await tx.wallet.update({
+                where: { userId },
+                data: { balance: { increment: amount } },
+            });
+
+            await tx.transaction.create({
+                data: {
+                    walletId: wallet.id,
+                    type: 'refund',
+                    amount,
+                    description: `Room deposit refunded`,
+                    roomId,
+                },
+            });
+
+            // Deduct from room prize pool if applicable
+            await tx.room.update({
+                where: { id: roomId },
+                data: { prizePool: { decrement: amount } },
+            });
+        });
+
+        return this.getWallet(userId);
+    }
+
     async withdraw(userId: string, amount: number) {
         await this.prisma.$transaction(async (tx) => {
             const wallet = await tx.wallet.findUnique({ where: { userId } });

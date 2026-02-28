@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
+import { toast } from '../../../lib/toast';
 
 export default function AdminRooms() {
     const [data, setData] = useState<any>(null);
@@ -25,7 +26,7 @@ export default function AdminRooms() {
             else if (action === 'force-end') await api.adminForceEndRoom(roomId);
             else if (action === 'refund') await api.adminRefundRoom(roomId);
             load();
-        } catch (e: any) { alert(e.message); }
+        } catch (e: any) { toast.error(e.message || 'An error occurred'); }
     };
 
     const thStyle: React.CSSProperties = { padding: '0.6rem 0.75rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border-primary)' };

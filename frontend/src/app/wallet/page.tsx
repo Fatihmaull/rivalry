@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../lib/api';
 import Link from 'next/link';
+import { toast } from '../../lib/toast';
 
 export default function WalletPage() {
     const { user } = useAuth();
@@ -22,7 +23,7 @@ export default function WalletPage() {
             const updated = await api.topUp(amount);
             setWallet(updated);
         } catch (err: any) {
-            alert(err.message);
+            toast.error(err.message || 'An error occurred');
         } finally {
             setAction(null);
         }
@@ -34,7 +35,7 @@ export default function WalletPage() {
             const updated = await api.withdraw(amount);
             setWallet(updated);
         } catch (err: any) {
-            alert(err.message);
+            toast.error(err.message || 'An error occurred');
         } finally {
             setAction(null);
         }

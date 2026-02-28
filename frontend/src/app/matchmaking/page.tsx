@@ -2,15 +2,19 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../lib/api';
+import { toast } from '../../lib/toast';
 
 export default function MatchmakingPage() {
     const { user } = useAuth();
+    const router = useRouter();
     const [rivals, setRivals] = useState<any[]>([]);
     const [invites, setInvites] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [tab, setTab] = useState('find');
+    const [processingId, setProcessingId] = useState<string | null>(null);
 
     useEffect(() => {
         if (!user) return;
@@ -27,9 +31,37 @@ export default function MatchmakingPage() {
     const handleInvite = async (rivalId: string) => {
         try {
             await api.sendInvite({ receiverId: rivalId, message: "Let's compete!" });
-            alert('Invite sent.');
+            toast.success('Invite sent.');
         } catch (err: any) {
-            alert(err.message);
+            toast.error(err.message || 'An error occurred');
+        }
+    };
+
+    const handleAccept = async (inviteId: string) => {
+        setProcessingId(inviteId);
+        try {
+            const res = await api.acceptInvite(inviteId);
+            toast.success('Invite accepted! Joining room...');
+            if (res.roomId) {
+                router.push(`/rooms/${res.roomId}`);
+            } else {
+                setInvites(prev => prev.filter(i => i.id !== inviteId));
+            }
+        } catch (err: any) {
+            toast.error(err.message || 'Failed to accept invite');
+            setProcessingId(null);
+        }
+    };
+
+    const handleDecline = async (inviteId: string) => {
+        setProcessingId(inviteId);
+        try {
+            await api.declineInvite(inviteId);
+            toast.success('Invite declined.');
+            setInvites(prev => prev.filter(i => i.id !== inviteId));
+        } catch (err: any) {
+            toast.error(err.message || 'Failed to decline invite');
+            setProcessingId(null);
         }
     };
 
@@ -124,8 +156,20 @@ export default function MatchmakingPage() {
                                         {inv.message && <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{inv.message}</p>}
                                     </div>
                                     <div style={{ display: 'flex', gap: '12px' }}>
-                                        <button className="btn btn-primary">ACCEPT</button>
-                                        <button className="btn btn-outline">DECLINE</button>
+                                        <button
+                                            onClick={() => handleAccept(inv.id)}
+                                            className="btn btn-primary"
+                                            disabled={processingId === inv.id}
+                                        >
+                                            {processingId === inv.id ? '...' : 'ACCEPT'}
+                                        </button>
+                                        <button
+                                            onClick={() => handleDecline(inv.id)}
+                                            className="btn btn-outline"
+                                            disabled={processingId === inv.id}
+                                        >
+                                            DECLINE
+                                        </button>
                                     </div>
                                 </div>
                             </div>

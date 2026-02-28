@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import ClientProviders from "../components/ClientProviders";
 import Footer from "../components/Footer";
+import ToastContainer from "../components/ToastContainer";
 
 export const metadata: Metadata = {
   title: "Rivalry — Competitive Goal Achievement",
@@ -20,6 +21,7 @@ export default function RootLayout({
         <ClientProviders>
           {children}
           <Footer />
+          <ToastContainer />
         </ClientProviders>
       </body>
     </html>

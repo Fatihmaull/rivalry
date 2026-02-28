@@ -13,8 +13,8 @@ export class MatchmakingController {
     }
 
     @Post('invite')
-    async sendInvite(@Request() req: any, @Body() body: { receiverId: string; goalId?: string; message?: string }) {
-        return this.matchmakingService.sendInvite(req.user.sub, body.receiverId, body.goalId, body.message);
+    async sendInvite(@Request() req: any, @Body() body: { receiverId: string; goalId?: string; roomId?: string; competitionType?: string; interestCategory?: string; message?: string }) {
+        return this.matchmakingService.sendInvite(req.user.sub, body.receiverId, body);
     }
 
     @Get('invites')
@@ -25,5 +25,17 @@ export class MatchmakingController {
     @Post('invites/:id/respond')
     async respondInvite(@Request() req: any, @Param('id') id: string, @Body() body: { accept: boolean }) {
         return this.matchmakingService.respondInvite(id, req.user.sub, body.accept);
+    }
+
+    @Post('invites/:id/accept')
+    async acceptInvite(@Request() req: any, @Param('id') id: string) {
+        const invite = await this.matchmakingService.respondInvite(id, req.user.sub, true);
+        return { message: 'Invite accepted', roomId: invite?.roomId || invite?.goalId };
+    }
+
+    @Post('invites/:id/decline')
+    async declineInvite(@Request() req: any, @Param('id') id: string) {
+        await this.matchmakingService.respondInvite(id, req.user.sub, false);
+        return { message: 'Invite declined' };
     }
 }

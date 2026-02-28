@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
 import { useAuth } from '../../../context/AuthContext';
+import { toast } from '../../../lib/toast';
 
 export default function AdminSystem() {
     const { user } = useAuth();
@@ -15,7 +16,7 @@ export default function AdminSystem() {
 
     const handleUpdate = async (key: string, value: string) => {
         setSaving(key);
-        try { await api.adminUpdateSetting(key, value); } catch (e: any) { alert(e.message); }
+        try { await api.adminUpdateSetting(key, value); } catch (e: any) { toast.error(e.message || 'An error occurred'); }
         setSaving('');
     };
 

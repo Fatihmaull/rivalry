@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../lib/api';
+import { toast } from '../../lib/toast';
 
 export default function FeedPage() {
     const { user } = useAuth();
@@ -13,11 +14,16 @@ export default function FeedPage() {
     const [posting, setPosting] = useState(false);
 
     useEffect(() => {
-        if (user) {
-            api.getFeed().then(setPosts).catch(console.error).finally(() => setLoading(false));
-        } else {
-            setLoading(false);
-        }
+        const fetchFeed = () => {
+            if (user) {
+                api.getFeed().then(setPosts).catch(console.error).finally(() => setLoading(false));
+            } else {
+                setLoading(false);
+            }
+        };
+        fetchFeed();
+        const interval = setInterval(fetchFeed, 10000);
+        return () => clearInterval(interval);
     }, [user]);
 
     const handlePost = async () => {
@@ -28,7 +34,7 @@ export default function FeedPage() {
             setPosts([post, ...posts]);
             setContent('');
         } catch (err: any) {
-            alert(err.message);
+            toast.error(err.message || 'An error occurred');
         } finally {
             setPosting(false);
         }
@@ -95,8 +101,39 @@ export default function FeedPage() {
                                         </span>
                                     </div>
                                     <p style={{ fontSize: '0.95rem', lineHeight: 1.6, color: 'var(--text-secondary)' }}>{post.content}</p>
-                                    <div style={{ marginTop: '16px', fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', borderTop: '1px solid var(--border-subtle)', paddingTop: '12px' }}>
-                                        [ {post._count?.comments || 0} COMMENTS ]
+
+                                    {post.imageUrl && (
+                                        <div style={{ marginTop: '16px' }}>
+                                            <img src={post.imageUrl} alt="Post media" style={{ maxWidth: '100%', maxHeight: '400px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }} />
+                                        </div>
+                                    )}
+                                    <div style={{ marginTop: '16px', display: 'flex', gap: '16px', alignItems: 'center', borderTop: '1px solid var(--border-subtle)', paddingTop: '12px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.03)', padding: '4px 8px', borderRadius: '20px', border: '1px solid var(--border-subtle)' }}>
+                                            <button
+                                                className={`btn-ghost ${post.userVote === 1 ? 'text-primary' : ''}`}
+                                                style={{ padding: '4px', color: post.userVote === 1 ? '#10b981' : 'var(--text-muted)' }}
+                                                onClick={async () => {
+                                                    const newVote = post.userVote === 1 ? 0 : 1;
+                                                    const res = await api.votePost(post.id, newVote);
+                                                    setPosts(posts.map(p => p.id === post.id ? { ...p, score: res.score, userVote: res.userVote } : p));
+                                                }}
+                                            >▲</button>
+                                            <span style={{ fontSize: '0.85rem', fontWeight: 600, fontFamily: 'var(--font-mono)', minWidth: '20px', textAlign: 'center', color: post.score > 0 ? '#10b981' : post.score < 0 ? '#ef4444' : 'var(--text-primary)' }}>
+                                                {post.score || 0}
+                                            </span>
+                                            <button
+                                                className={`btn-ghost ${post.userVote === -1 ? 'text-primary' : ''}`}
+                                                style={{ padding: '4px', color: post.userVote === -1 ? '#ef4444' : 'var(--text-muted)' }}
+                                                onClick={async () => {
+                                                    const newVote = post.userVote === -1 ? 0 : -1;
+                                                    const res = await api.votePost(post.id, newVote);
+                                                    setPosts(posts.map(p => p.id === post.id ? { ...p, score: res.score, userVote: res.userVote } : p));
+                                                }}
+                                            >▼</button>
+                                        </div>
+                                        <div style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-dim)' }}>
+                                            [ {post._count?.comments || 0} COMMENTS ]
+                                        </div>
                                     </div>
                                 </div>
                             </div>

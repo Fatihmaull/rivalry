@@ -16,23 +16,56 @@ export class RoomsService {
     async create(userId: string, dto: CreateRoomDto) {
         const maxPlayers = dto.type === '1v1' ? 2 : (dto.maxPlayers || 10);
 
-        const room = await this.prisma.room.create({
-            data: {
-                creatorId: userId,
-                title: dto.title,
-                description: dto.description,
-                goalId: dto.goalId,
-                type: dto.type,
-                entryDeposit: dto.entryDeposit,
-                proofType: dto.proofType,
-                duration: dto.duration,
-                maxPlayers,
-            },
-            include: { creator: { select: { id: true, username: true, avatarUrl: true } } },
+        let room = await this.prisma.room.findFirst({
+            where: { creatorId: userId, status: 'draft' },
         });
 
+        if (room) {
+            room = await this.prisma.room.update({
+                where: { id: room.id },
+                data: {
+                    title: dto.title,
+                    description: dto.description,
+                    goalId: dto.goalId,
+                    type: dto.type,
+                    entryDeposit: dto.entryDeposit,
+                    proofType: dto.proofType,
+                    duration: dto.duration,
+                    maxPlayers,
+                }
+            });
+        } else {
+            room = await this.prisma.room.create({
+                data: {
+                    creatorId: userId,
+                    title: dto.title,
+                    description: dto.description,
+                    goalId: dto.goalId,
+                    type: dto.type,
+                    status: 'draft',
+                    entryDeposit: dto.entryDeposit,
+                    proofType: dto.proofType,
+                    duration: dto.duration,
+                    maxPlayers,
+                },
+                include: { creator: { select: { id: true, username: true, avatarUrl: true } } },
+            });
+        }
+
         // Creator auto-joins
-        await this.joinRoom(userId, room.id);
+        const isParticipant = await this.prisma.participant.findUnique({
+            where: { roomId_userId: { roomId: room.id, userId } },
+        });
+
+        if (!isParticipant) {
+            await this.joinRoom(userId, room.id);
+        }
+
+        // Once creator joins, it becomes waiting (if they are the only one)
+        await this.prisma.room.update({
+            where: { id: room.id },
+            data: { status: 'waiting' }
+        });
 
         return this.findById(room.id);
     }
@@ -51,7 +84,7 @@ export class RoomsService {
                     include: {
                         milestones: {
                             orderBy: { orderIndex: 'asc' },
-                            include: { substeps: true }
+                            include: { substeps: true, proofs: true }
                         }
                     }
                 },
@@ -69,7 +102,7 @@ export class RoomsService {
             include: { _count: { select: { participants: true } } },
         });
         if (!room) throw new NotFoundException('Room not found');
-        if (room.status !== 'waiting' && room.status !== 'active') {
+        if (room.status !== 'waiting' && room.status !== 'draft') {
             throw new BadRequestException('Room is not accepting players');
         }
         if (room._count.participants >= room.maxPlayers) {
@@ -106,10 +139,18 @@ export class RoomsService {
             },
         });
 
-        // Auto-activate if enough players for 1v1
+        // Auto-generate roadmap if the room is fully booked
         const count = await this.prisma.participant.count({ where: { roomId } });
-        if (room.type === '1v1' && count >= 2) {
-            await this.activateRoom(roomId);
+        if (count >= room.maxPlayers) {
+            // Generate roadmap
+            await this.generateRoadmap(roomId, room.title, room.duration);
+
+            const agreementDeadline = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+            await this.prisma.room.update({
+                where: { id: roomId },
+                data: { status: 'waiting_for_agreement', agreementDeadline }
+            });
+            this.gateway.notifyRoomUpdate(roomId, 'room:waitingForAgreement', { roomId, agreementDeadline });
         }
 
         // Notify via WebSocket
@@ -138,9 +179,6 @@ export class RoomsService {
             data: { status: 'active', startDate: now, endDate },
         });
 
-        // Generate roadmap
-        await this.generateRoadmap(roomId, room.title, room.duration);
-
         // Notify via WebSocket
         this.gateway.notifyRoomUpdate(roomId, 'room:activated', {
             roomId,
@@ -149,13 +187,79 @@ export class RoomsService {
         });
     }
 
+    async agreeToRoadmap(userId: string, roomId: string) {
+        const participant = await this.prisma.participant.findUnique({
+            where: { roomId_userId: { roomId, userId } }
+        });
+        if (!participant) throw new NotFoundException('Participant not found');
+        if (participant.hasAgreed) return this.findById(roomId);
+
+        await this.prisma.participant.update({
+            where: { id: participant.id },
+            data: { hasAgreed: true }
+        });
+
+        const room = await this.prisma.room.findUnique({
+            where: { id: roomId },
+            include: { participants: true }
+        });
+
+        if (!room) throw new NotFoundException('Room not found');
+
+        const allAgreed = room.participants.every(p => p.hasAgreed);
+        if (allAgreed && room.participants.length >= room.maxPlayers) {
+            const startDeadline = new Date(Date.now() + 2 * 60 * 60 * 1000); // 2 hours
+            await this.prisma.room.update({
+                where: { id: roomId },
+                data: { status: 'waiting_for_start', startDeadline }
+            });
+            this.gateway.notifyRoomUpdate(roomId, 'room:waitingForStart', { roomId, startDeadline });
+        }
+        return this.findById(roomId);
+    }
+
+    async startRoomIfReady(userId: string, roomId: string) {
+        const participant = await this.prisma.participant.findUnique({
+            where: { roomId_userId: { roomId, userId } }
+        });
+        if (!participant) throw new NotFoundException('Participant not found');
+        if (participant.hasStarted) return this.findById(roomId);
+
+        await this.prisma.participant.update({
+            where: { id: participant.id },
+            data: { hasStarted: true }
+        });
+
+        const room = await this.prisma.room.findUnique({
+            where: { id: roomId },
+            include: { participants: true }
+        });
+
+        if (!room) throw new NotFoundException('Room not found');
+
+        const allStarted = room.participants.every(p => p.hasStarted);
+        if (allStarted && room.participants.length >= room.maxPlayers) {
+            await this.activateRoom(roomId);
+        } else {
+            const notStarted = room.participants.filter(p => !p.hasStarted);
+            notStarted.forEach(p => {
+                this.gateway.notifyUser(p.userId, 'room:startReminder', { roomId });
+            });
+        }
+        return this.findById(roomId);
+    }
+
     private async generateRoadmap(roomId: string, goalTitle: string, duration: string) {
         const weekMap: Record<string, number> = {
             '1_week': 1, '2_weeks': 2, '1_month': 4, '3_months': 12,
         };
         const weeks = weekMap[duration] || 4;
 
-        const roadmap = await this.prisma.roadmap.create({
+        // Ensure we don't duplicate roadmap if called multiple times (e.g. race conditions)
+        let roadmap = await this.prisma.roadmap.findUnique({ where: { roomId } });
+        if (roadmap) return;
+
+        roadmap = await this.prisma.roadmap.create({
             data: {
                 roomId,
                 title: `${goalTitle} Roadmap`,
@@ -285,7 +389,7 @@ export class RoomsService {
                 data: {
                     roomId,
                     type: 'milestone_completed',
-                    content: `🏆 ${user?.username} won the competition and claimed the prize pool of ${room.prizePool} credits!`,
+                    content: `${user?.username} won the competition and claimed the prize pool of ${room.prizePool} credits!`,
                     userId: winner.userId,
                 },
             });
@@ -322,6 +426,61 @@ export class RoomsService {
         });
 
         return this.findById(roomId);
+    }
+
+    async pokePlayers(userId: string, roomId: string) {
+        const room = await this.prisma.room.findUnique({ where: { id: roomId } });
+        if (!room) throw new NotFoundException('Room not found');
+
+        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+        if (!user) throw new NotFoundException('User not found');
+
+        let message = `${user.username} sent a notification.`;
+        if (room.status === 'waiting_for_agreement') {
+            message = `@${user.username} is waiting for everyone to agree to the roadmap.`;
+        } else if (room.status === 'waiting_for_start') {
+            message = `@${user.username} is waiting for everyone to start the competition.`;
+        } else {
+            message = `@${user.username} poked the room.`;
+        }
+
+        // Drop the message directly into the room's feed.
+        await this.prisma.roomFeedItem.create({
+            data: {
+                roomId,
+                type: 'message',
+                content: message,
+                userId,
+            }
+        });
+
+        // Broadcast to clients listening to this room via WebSocket to ensure immediate polling
+        this.gateway.notifyRoomUpdate(roomId, 'room:update', { roomId });
+
+        return { success: true, message: 'Notification sent' };
+    }
+
+    async reportWinner(userId: string, roomId: string) {
+        const room = await this.prisma.room.findUnique({ where: { id: roomId } });
+        if (!room) throw new NotFoundException('Room not found');
+
+        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+        console.log(`[🚩 REPORT FLAG] User @${user?.username} reported the winner of Room ${roomId} for suspicious activity.`);
+
+        // Add a visible feed item about the flag
+        await this.prisma.roomFeedItem.create({
+            data: {
+                roomId,
+                type: 'message',
+                content: `🚨 @${user?.username} flagged the winning result for admin review.`,
+                userId,
+            }
+        });
+
+        // Broadcast a room update for the feed
+        this.gateway.notifyRoomUpdate(roomId, 'room:update', { roomId });
+
+        return { success: true, message: 'Report submitted for admin review.' };
     }
 
     async listRooms(filters: { status?: string; type?: string; category?: string }, page = 1) {
